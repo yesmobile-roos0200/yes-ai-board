@@ -295,7 +295,7 @@
         <td class="col-cat">${catChip(p.category)}</td>
         <td class="col-title">
           <a class="cell-title" href="#/p/${p.id}">${esc(p.title)}${cmt ? `<span class="cmt">(${cmt})</span>` : ''}</a>
-          <span class="m-meta">${badge(p.author)}<span class="dot"></span><span>${fmtShort(p.created_at)}</span></span>
+          <span class="m-meta">${p.is_pinned ? '<span class="pinmark">📌</span>' : ''}${catChip(p.category)}${badge(p.author)}<span class="dot"></span><span>${fmtShort(p.created_at)}</span></span>
         </td>
         <td class="col-author">${badge(p.author)}</td>
         <td class="col-date">${fmtShort(p.created_at)}</td>

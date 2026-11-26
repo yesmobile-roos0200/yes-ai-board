@@ -283,15 +283,39 @@ pre{margin:0;white-space:pre-wrap;word-break:break-word}
   .who{display:none}
   .search input{width:132px}
   .btn-write{padding:0 12px}
-  .board-table col.c-no,.board-table col.c-date{width:0}
-  .col-no,.col-date{display:none}
-  .board-table col.c-cat{width:74px}
-  .board-table col.c-author{width:78px}
-  .board-table thead th{padding:8px}
-  .board-table td{padding:9px 8px}
-  .cell-title{white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-  .m-meta{display:flex}
-  .board-table .col-author .badge{font-size:11.2px;padding:2px 6px}
+
+  /* 글 목록: 5열 표 → 카드형 리스트 (colgroup/셀 매칭 밀림 방지) */
+  .table-wrap{background:transparent;border:0;border-radius:0;box-shadow:none;overflow:visible}
+  .board-table thead{display:none}
+  .board-table,
+  .board-table tbody,
+  .board-table tr,
+  .board-table td{display:block;width:100%}
+  .board-table colgroup{display:none}
+  .board-table td.col-no,
+  .board-table td.col-cat,
+  .board-table td.col-author,
+  .board-table td.col-date{display:none}
+  .board-table tbody tr{
+    background:var(--card);border:1px solid var(--line);border-radius:12px;
+    box-shadow:var(--shadow);padding:13px 14px;margin-bottom:9px;
+  }
+  .board-table tbody tr:last-child{margin-bottom:0}
+  .board-table tbody tr:hover{background:var(--card)}
+  .board-table td{padding:0;border-bottom:0}
+  .board-table td.col-title{padding:0}
+  .cell-title{
+    white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;
+    overflow:hidden;word-break:break-word;overflow-wrap:anywhere;
+    font-size:14.5px;line-height:1.45;
+  }
+  .m-meta{
+    display:flex;align-items:center;gap:6px;flex-wrap:wrap;
+    margin-top:8px;font-size:12px;
+  }
+  .m-meta .cat-chip{font-size:11px;padding:4px 7px;line-height:1}
+  .m-meta .badge{font-size:11.2px;padding:2px 7px}
+  .m-meta .pinmark{margin-right:0}
   .post{padding:18px 16px 14px}
   .post-title{font-size:18.5px}
   .write-form{padding:18px 16px}
