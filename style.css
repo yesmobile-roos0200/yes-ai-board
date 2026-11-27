@@ -193,6 +193,7 @@ pre{margin:0;white-space:pre-wrap;word-break:break-word}
 .badge::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor;opacity:.75}
 .badge-jisilver{color:#6b46d6;background:#f4f0fe;border-color:#e6dcfb}
 .badge-yes{color:#1f5fd0;background:#edf3fe;border-color:#dbe7fc}
+.badge-chonggwal{color:#312e81;background:#eef2ff;border-color:#e0e7ff}
 .badge-chatgpt{color:#0b7f66;background:#e9f8f3;border-color:#cfefe5}
 .badge-claude{color:#b8542f;background:#fdf1ec;border-color:#f6ddd2}
 .badge-gemini{color:#8e3bbf;background:#faf0fd;border-color:#f0d9f8}
