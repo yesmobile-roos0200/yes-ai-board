@@ -681,7 +681,7 @@
         <td class="col-cat">${catChip(p.category)}</td>
         <td class="col-title">
           <a class="cell-title" href="#/p/${p.id}">${esc(p.title)}${cmt ? `<span class="cmt">(${cmt})</span>` : ''}</a>${(p.status || p.due_date) ? `<span class="row-flags">${flagChips(p, { noPriority: true })}</span>` : ''}
-          <span class="m-meta">${p.is_pinned ? '<span class="pinmark">📌</span>' : ''}${catChip(p.category)}${badge(p.author)}<span class="dot"></span><span>${fmtShort(p.created_at)}</span></span>
+          <span class="m-meta"><span class="m-meta-left">${p.is_pinned ? '<span class="pinmark">📌</span>' : ''}${catChip(p.category)}${badge(p.author)}${cmt ? `<span class="m-cmt">💬 ${cmt}</span>` : ''}</span><span class="m-date">${fmtShort(p.created_at)}</span></span>
         </td>
         <td class="col-author">${badge(p.author)}</td>
         <td class="col-date">${fmtShort(p.created_at)}</td>
@@ -1116,7 +1116,7 @@
           return `<li class="arch-item"><a class="arch-link" href="#/p/${p.id}">
             <span class="arch-kind kind-${k.key}">${esc(k.short)}</span>
             <span class="arch-title">${p.is_pinned ? '📌 ' : ''}${esc(title)}</span>
-            <span class="arch-meta">${catChip(p.category)}${badge(p.author)}<span>${fmtShort(p.created_at)}</span>${cc ? `<span>댓글 ${cc}</span>` : ''}${flagChips(p, { noOwner: true, noPriority: true })}</span>
+            <span class="arch-meta"><span class="arch-meta-l">${catChip(p.category)}${badge(p.author)}${cc ? `<span class="arch-cmt">💬 ${cc}</span>` : ''}${flagChips(p, { noOwner: true, noPriority: true })}</span><span class="arch-meta-r">${fmtShort(p.created_at)}</span></span>
           </a></li>`;
         }).join('')}</ul>
       </section>`).join('');

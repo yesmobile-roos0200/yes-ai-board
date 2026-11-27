@@ -465,6 +465,9 @@ pre{margin:0;white-space:pre-wrap;word-break:break-word}
 .arch-title{flex:1 1 auto;min-width:0;font-size:14px;font-weight:500;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .arch-link:hover .arch-title{color:var(--accent);text-decoration:underline}
 .arch-meta{flex:none;display:flex;align-items:center;gap:6px;font-size:11.8px;color:var(--muted);white-space:nowrap}
+.arch-meta-l{display:inline-flex;align-items:center;gap:6px;min-width:0;flex-wrap:wrap}
+.arch-meta-r{flex:none;font-variant-numeric:tabular-nums}
+.arch-cmt{color:#5b6373;font-weight:600}
 .arch-meta .cat-chip{font-size:10.8px;padding:3px 6px}
 .arch-meta .badge{font-size:11.2px;padding:2px 7px}
 .arch-meta .badge::before{width:5px;height:5px}
@@ -479,26 +482,38 @@ pre{margin:0;white-space:pre-wrap;word-break:break-word}
 
 /* 모바일 */
 @media (max-width:720px){
-  /* 탭: 주요 화면 3개 고정 한 줄 + 말머리 가로 스크롤 (390px 넘침 방지) */
+  /* 탭: 주요 화면 3개 한 줄 + 말머리 6개 3열×2줄 (2026-11-28 — 오른쪽 끝 '결산·자료' 잘림 제거) */
   .tabbar{flex-direction:column}
   .tabs-main{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));overflow:visible;border-left:0;margin-left:0;padding-left:0}
-  .tabs-main .tab{padding:10px 4px 9px;font-size:13.5px;text-align:center;justify-content:center}
-  .tabs-cats{border-left:0;margin-left:0;padding-left:0;padding-right:16px}
-  .tabs-cats .tab{padding:10px 12px 9px;font-size:13.5px}
-  /* 결산·자료실 */
+  .tabs-main .tab{padding:11px 4px 10px;font-size:13.5px;text-align:center;justify-content:center}
+  .tabs-cats{
+    display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;
+    overflow:visible;border-left:0;margin-left:0;padding:0;
+  }
+  .tabs-cats .tab{
+    display:flex;align-items:center;justify-content:center;min-height:44px;
+    padding:11px 2px 10px;font-size:14px;letter-spacing:-.2px;
+  }
+  /* 결산·자료실 — 뽐뿌식 얇은 구분선 목록 (2026-11-28) */
   .arch-head{gap:6px;margin-bottom:8px}
   .arch-filters{gap:5px;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;max-width:100%}
   .arch-filters::-webkit-scrollbar{display:none}
   .arch-filter{height:30px;padding:0 10px;font-size:12.4px}
   .arch-write{margin-left:0;flex:1 1 100%;justify-content:center;height:34px!important}
-  .arch-lead{font-size:12px;margin-bottom:12px}
-  .arch-link{display:grid;grid-template-columns:auto minmax(0,1fr);grid-template-areas:"kind title" "kind meta";gap:3px 8px;padding:11px 13px;align-items:start}
-  .arch-kind{grid-area:kind;margin-top:1px}
-  .arch-title{grid-area:title;white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word;overflow-wrap:anywhere;font-size:14px;line-height:1.45}
-  .arch-meta{grid-area:meta;flex-wrap:wrap;white-space:normal;gap:5px;font-size:11.4px}
-  .act-link{padding:10px 12px 10px 20px}
-  .act-dot{left:8px}
-  .act-snip{flex-basis:100%}
+  .arch-lead{font-size:12.4px;line-height:1.6;margin-bottom:12px}
+  .arch-rows{margin:0 -12px;border:0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);border-radius:0;box-shadow:none}
+  .arch-month{margin:14px 0 6px;padding:0 12px}
+  .arch-group:first-child .arch-month{margin-top:2px}
+  .arch-item+.arch-item{border-top:1px solid var(--line)}
+  .arch-link{display:block;padding:14px 12px}
+  .arch-kind{display:inline-block;margin:0 0 7px;font-size:11px;padding:3px 7px}
+  .arch-title{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word;overflow-wrap:anywhere;white-space:normal;font-size:16px;line-height:1.45;font-weight:600;color:#111826;letter-spacing:-.3px}
+  .arch-meta{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:7px;font-size:12.2px;white-space:normal}
+  .arch-meta-l{min-width:0;flex-wrap:wrap;gap:6px}
+  .arch-meta .cat-chip{display:none}
+  .arch-meta .badge{font-size:11.4px;padding:2px 7px}
+  .arch-meta-r{color:#98a1b2;font-size:12px}
+  .act-link{padding:12px 13px 12px 20px}
   .wrap{padding:12px 12px 40px}
   .topbar-inner{padding:10px 14px}
   .brand-text small{display:none}
@@ -511,8 +526,8 @@ pre{margin:0;white-space:pre-wrap;word-break:break-word}
   .btn-copy-recent{font-size:12.5px!important}
   .post-foot-left,.post-foot-right{flex-wrap:wrap}
 
-  /* 글 목록: 5열 표 → 카드형 리스트 (colgroup/셀 매칭 밀림 방지) */
-  .table-wrap{background:transparent;border:0;border-radius:0;box-shadow:none;overflow:visible}
+  /* 글 목록: 5열 표 → 뽐뿌식 얇은 구분선 리스트 (colgroup/셀 매칭 밀림 방지, 2026-11-28) */
+  .table-wrap{background:var(--card);border:0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);border-radius:0;box-shadow:none;overflow:visible;margin:0 -12px}
   .board-table thead{display:none}
   .board-table,
   .board-table tbody,
@@ -524,49 +539,68 @@ pre{margin:0;white-space:pre-wrap;word-break:break-word}
   .board-table td.col-author,
   .board-table td.col-date{display:none}
   .board-table tbody tr{
-    background:var(--card);border:1px solid var(--line);border-radius:12px;
-    box-shadow:var(--shadow);padding:13px 14px;margin-bottom:9px;
+    background:transparent;border:0;border-bottom:1px solid var(--line);
+    border-radius:0;box-shadow:none;padding:14px 12px;margin:0;
   }
-  .board-table tbody tr:last-child{margin-bottom:0}
-  .board-table tbody tr:hover{background:var(--card)}
+  .board-table tbody tr:last-child{border-bottom:0}
+  .board-table tbody tr:hover{background:#fafcff}
   .board-table td{padding:0;border-bottom:0}
   .board-table td.col-title{padding:0}
   .cell-title{
     white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;
     overflow:hidden;word-break:break-word;overflow-wrap:anywhere;
-    font-size:14.5px;line-height:1.45;
+    font-size:16px;line-height:1.45;font-weight:600;color:#111826;letter-spacing:-.3px;
   }
+  .cell-title .cmt{display:none}
   .m-meta{
-    display:flex;align-items:center;gap:6px;flex-wrap:wrap;
-    margin-top:8px;font-size:12px;
+    display:flex;align-items:center;justify-content:space-between;gap:8px;
+    margin-top:7px;font-size:12.2px;
   }
-  .m-meta .cat-chip{font-size:11px;padding:4px 7px;line-height:1}
-  .m-meta .badge{font-size:11.2px;padding:2px 7px}
+  .m-meta-left{display:inline-flex;align-items:center;gap:6px;min-width:0;flex-wrap:wrap}
+  .m-date{flex:none;color:#98a1b2;font-size:12px;font-variant-numeric:tabular-nums}
+  .m-meta .cat-chip{font-size:11px;padding:3px 7px;line-height:1.3}
+  .m-meta .badge{font-size:11.4px;padding:2px 7px}
   .m-meta .pinmark{margin-right:0}
-  .post{padding:18px 16px 14px}
-  .post-title{font-size:18.5px}
+  .m-cmt{color:#4b5363;font-weight:600}
+  /* 본문·댓글 가독성 (2026-11-28) */
+  .post{padding:18px 16px 14px;border-radius:10px}
+  .post-title{font-size:19.5px;line-height:1.42}
+  .post-body{font-size:15.8px;line-height:1.7;margin:16px 0 22px;padding-top:16px}
+  .post-body p{margin:0 0 13px}
+  .comment-body{font-size:15px;line-height:1.65}
+  .comment-item{padding:13px 14px}
+  .comment-form{padding:13px 14px}
+  .act-dot{left:8px;top:19px}
+  .act-title{font-size:15px;line-height:1.45}
+  .act-sub{gap:5px;margin-top:6px}
+  .act-snip{flex-basis:100%}
   .write-form{padding:18px 16px}
   .screen-login{padding-top:4vh}
   .login-card{padding:26px 20px 20px}
   .notice-card{padding:20px 18px}
   .cat-chip{font-size:11px;padding:4px 6px}
-  .comment-item{padding:11px 13px}
-  .comment-form{padding:12px 13px}
 
-  /* 대시보드 — ①(5~7건) → ②세로 스택 → ③ → ④ 순서 */
+  /* 대시보드 — ① → ② → ③ → ④ 세로 순서 */
   .dash{gap:10px}
-  .dash-head{padding:10px 13px;gap:6px}
+  .dash-head{padding:11px 13px;gap:6px}
   .dash-hint{display:none}
-  /* 2026-11-27: 영역 칸은 세로로 쌓지 않고 가로로 넘긴다(최근 활동까지 덜 내려가게) */
-  .dash-areas{display:flex;gap:8px;padding:10px;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;scrollbar-width:none}
-  .dash-areas::-webkit-scrollbar{display:none}
-  .dash-areas .area-card{flex:0 0 86%;scroll-snap-align:start}
-  .area-empty-strip{padding:0 13px 10px}
-  .todo-link{padding:10px 13px}
-  .todo-title{font-size:14px}
-  .rule-link{padding:10px 13px}
-  .rule-title{font-size:13.4px}
-  .act-item{padding:9px 13px}
+  /* 2026-11-28: ② 영역별은 세로 1열 — 가로 넘침으로 카드가 반 토막 나고 아래가 비던 문제 제거 */
+  .dash-areas{display:grid;grid-template-columns:1fr;gap:0;padding:0;overflow:visible}
+  .dash-areas .area-card{border:0;border-top-style:solid;border-top-width:2px;border-radius:0;box-shadow:none}
+  .area-head{padding:11px 13px;background:#fbfcfe}
+  .area-head h3{font-size:14px}
+  .area-count{font-size:11px}
+  .area-links{gap:9px;font-size:11.2px}
+  .area-item{padding:11px 13px}
+  .area-title{font-size:14.6px;line-height:1.45;font-weight:600}
+  .area-meta{font-size:11.8px;margin-top:3px}
+  .area-sub{padding:8px 13px 0;font-size:11.2px}
+  .area-empty{padding:16px 13px;font-size:12.2px}
+  .area-empty-strip{padding:12px 13px}
+  .todo-link{padding:12px 13px}
+  .todo-title{font-size:15px}
+  .rule-link{padding:12px 13px}
+  .rule-title{font-size:14.4px}
   .dash-foot{padding:0 2px;font-size:11px}
   .tag-chips{gap:5px}
   .tag-chip{height:28px;padding:0 10px;font-size:12px}
