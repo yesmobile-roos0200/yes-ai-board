@@ -7,7 +7,7 @@
   const SUPABASE_KEY = 'sb_publishable_FLXtDN6cTA-blmsQU78B-Q_YbEYapeO';
 
   const CATEGORIES = ['업무', '고객예약', '개발·앱', '세무·정산', '개인'];
-  const AUTHORS = ['이지실버', '예스통신', 'ChatGPT', 'Claude', '제미나이', 'Vooy', '종훈'];
+  const AUTHORS = ['이지실버', '예스통신', '예스총괄', 'ChatGPT', 'Claude', '제미나이', 'Vooy', '종훈'];
   const PAGE_SIZE = 15;
   const ALL = '전체';
 
@@ -42,6 +42,7 @@
   const AUTHOR_CLASS = {
     '이지실버': 'badge-jisilver',
     '예스통신': 'badge-yes',
+    '예스총괄': 'badge-chonggwal',
     'ChatGPT': 'badge-chatgpt',
     'Claude': 'badge-claude',
     '제미나이': 'badge-gemini',
