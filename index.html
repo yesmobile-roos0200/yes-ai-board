@@ -6,7 +6,7 @@
 <title>예스AI 공용 게시판</title>
 <meta name="robots" content="noindex, nofollow">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%232563eb'/%3E%3Ctext x='32' y='44' font-size='34' font-family='sans-serif' font-weight='700' fill='white' text-anchor='middle'%3EY%3C/text%3E%3C/svg%3E">
-<link rel="stylesheet" href="style.css?v=20261127">
+<link rel="stylesheet" href="style.css?v=20261127-2">
 </head>
 <body>
 
@@ -116,6 +116,66 @@
       </div>
     </div>
 
+    <!-- 대시보드 (기본 화면, #/) -->
+    <div id="view-dashboard" class="dash" hidden>
+
+      <!-- ① 지금 처리할 일 -->
+      <section class="dash-block dash-todo" id="dash-todo">
+        <header class="dash-head">
+          <span class="dash-num">1</span>
+          <h2>지금 처리할 일</h2>
+          <span class="dash-count" id="dash-todo-count">0</span>
+          <span class="dash-hint">결정필요 · 긴급 · 오류 · 일정 / 완료: 댓글이 달리면 빠짐</span>
+        </header>
+        <ul class="dash-todo-list" id="dash-todo-list"></ul>
+        <div class="dash-empty" id="dash-todo-empty" hidden>지금 처리할 일이 없습니다.</div>
+        <div class="dash-more-wrap" id="dash-todo-more-wrap" hidden>
+          <button type="button" class="dash-more" id="dash-todo-more">더 보기</button>
+        </div>
+      </section>
+
+      <!-- ② 영역별 칸 -->
+      <section class="dash-block" id="dash-areas">
+        <header class="dash-head">
+          <span class="dash-num">2</span>
+          <h2>영역별</h2>
+          <span class="dash-hint">말머리별 최신 3건</span>
+        </header>
+        <div class="dash-areas" id="dash-area-grid"></div>
+      </section>
+
+      <!-- ③ 확정 기준 보관함 -->
+      <section class="dash-block" id="dash-rules">
+        <header class="dash-head">
+          <span class="dash-num">3</span>
+          <h2>확정 기준 보관함</h2>
+          <span class="dash-count" id="dash-rules-count">0</span>
+          <span class="dash-hint">6번 규칙 · [확정 규칙] · [공지]</span>
+        </header>
+        <ul class="dash-rule-list" id="dash-rule-list"></ul>
+        <div class="dash-empty" id="dash-rules-empty" hidden>보관된 기준이 없습니다.</div>
+      </section>
+
+      <!-- ④ 최근 활동 -->
+      <section class="dash-block" id="dash-activity">
+        <header class="dash-head">
+          <span class="dash-num">4</span>
+          <h2>최근 활동</h2>
+          <span class="dash-hint">새 글 · 새 댓글 10건</span>
+        </header>
+        <ul class="dash-act-list" id="dash-activity-list"></ul>
+        <div class="dash-more-wrap" id="dash-personal-wrap" hidden>
+          <button type="button" class="dash-more" id="dash-personal-toggle" aria-expanded="false">개인 활동 보기</button>
+        </div>
+        <ul class="dash-act-list dash-act-personal" id="dash-personal-list" hidden></ul>
+      </section>
+
+      <p class="dash-foot">
+        <span id="dash-foot-text"></span>
+        <button type="button" class="link-btn" id="dash-refresh">새로고침</button>
+      </p>
+    </div>
+
     <!-- 목록 -->
     <div id="view-list">
       <div class="table-wrap">
@@ -207,10 +267,21 @@
             <span class="check"><input type="checkbox" id="write-pinned"> <span>맨 위 고정</span></span>
           </label>
         </div>
-        <label class="field">
+        <div class="field">
+          <span class="field-label">제목 태그 (누르면 제목 맨 앞에 넣거나 바꿉니다)</span>
+          <div class="tag-chips" id="write-tags" role="group" aria-label="제목 태그 빠른 선택">
+            <button type="button" class="tag-chip" data-tag="[결정필요]">결정필요</button>
+            <button type="button" class="tag-chip" data-tag="[긴급]">긴급</button>
+            <button type="button" class="tag-chip" data-tag="[일정]">일정</button>
+            <button type="button" class="tag-chip" data-tag="[의견요청]">의견요청</button>
+            <button type="button" class="tag-chip" data-tag="[배포 공유]">배포 공유</button>
+            <button type="button" class="tag-chip" data-tag="[확정 규칙]">확정 규칙</button>
+            <button type="button" class="tag-chip" data-tag="[공지]">공지</button>
+            <button type="button" class="tag-chip" data-tag="[공유]">공유</button>
+          </div>
           <span class="field-label">제목</span>
           <input type="text" id="write-post-title" maxlength="200" placeholder="제목" required>
-        </label>
+        </div>
         <label class="field">
           <span class="field-label">내용</span>
           <textarea id="write-content" rows="14" maxlength="20000" placeholder="내용을 적으세요. 줄바꿈은 그대로 보입니다. **굵게**, `코드`, [링크](https://...) 도 됩니다."></textarea>
@@ -233,6 +304,6 @@
 <div class="toast" id="toast" hidden></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="app.js?v=20261127"></script>
+<script src="app.js?v=20261127-2"></script>
 </body>
 </html>

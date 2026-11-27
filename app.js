@@ -11,6 +11,23 @@
   const PAGE_SIZE = 15;
   const ALL = '전체';
 
+  /* 대시보드(#/) 설정 — DB 변경 없이 제목 태그·`완료:` 댓글만으로 계산한다. */
+  const TODO_TAGS = ['[결정필요]', '[긴급]', '[오류]', '[일정]'];
+  const TODO_RANK = { '[결정필요]': 0, '[긴급]': 1, '[오류]': 1, '[일정]': 2 };
+  const RULE_POST_ID = 6;                       // 게시판 이용 규칙 글
+  const RULE_TAGS = ['[확정 규칙]', '[공지]'];
+  const AREA_DEFS = [
+    { key: '고객예약', label: '고객·예약', cls: 'area-reserve' },
+    { key: '개발·앱', label: '개발·앱', cls: 'area-dev', compact: true },
+    { key: '업무', label: '매장·업무', cls: 'area-work' },
+    { key: '세무·정산', label: '세무·정산', cls: 'area-tax' }
+  ];
+  const AREA_EXTRA_LINK = {
+    '고객예약': { href: 'https://app.notion.com/p/4182ce9e3d8f816fbc3dd82e7898aefb', label: '고객관리 원본' }
+  };
+  const TODO_BASE_MOBILE = 6;
+  const TODO_BASE_DESKTOP = 10;
+
   const $ = (sel, root = document) => root.querySelector(sel);
   const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
@@ -47,7 +64,11 @@
     postId: null,
     post: null,
     comments: [],
-    editing: false
+    editing: false,
+    dash: null,          // { posts, cmts, at }
+    dashDirty: true,
+    todoOpen: false,
+    personalOpen: false
   };
 
   let db = null;
@@ -73,6 +94,70 @@
     const d = new Date(iso);
     if (isNaN(d)) return '';
     return `${d.getFullYear()}.${pad(d.getMonth() + 1)}.${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+
+  const WEEKDAY = ['일', '월', '화', '수', '목', '금', '토'];
+  function fmtDay(d) {
+    const x = d instanceof Date ? d : new Date(d);
+    if (isNaN(x)) return '';
+    return `${x.getFullYear()}.${pad(x.getMonth() + 1)}.${pad(x.getDate())} (${WEEKDAY[x.getDay()]})`;
+  }
+
+  /* ---------- 대시보드용 계산 ---------- */
+  /* 제목 맨 앞 `[태그]` 추출·분리 (태그는 12자 이내, 내부 공백 허용) */
+  function titleTag(title) {
+    const m = String(title == null ? '' : title).match(/^\s*(\[[^\]\n]{1,12}\])/);
+    return m ? m[1] : '';
+  }
+
+  function stripTag(title) {
+    return String(title == null ? '' : title).replace(/^\s*\[[^\]\n]{1,12}\]\s*/, '').trim();
+  }
+
+  /* 댓글 첫 비공백 줄이 `완료:`로 시작하면 그 글은 완료 (본문 중간의 '완료:' 문장은 세지 않음) */
+  function firstLine(text) {
+    const lines = String(text == null ? '' : text).replace(/\r\n?/g, '\n').split('\n');
+    for (let i = 0; i < lines.length; i++) {
+      if (lines[i].trim() !== '') return lines[i];
+    }
+    return '';
+  }
+
+  function isDonePost(comments) {
+    return (comments || []).some((c) => /^\s*완료\s*:/.test(firstLine(c.content)));
+  }
+
+  /* 미리보기 한 줄 — 마크다운 기호를 띄고 길이를 줄인다. */
+  function snippet(text, n) {
+    const t = String(text == null ? '' : text)
+      .replace(/```[\s\S]*?```/g, ' ')
+      .replace(/[#>*`|~]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    return t.length > n ? t.slice(0, n - 1).trim() + '…' : t;
+  }
+
+  /* 고객·예약 칸 개인정보 마스킹 — 이름·전화번호가 그대로 보이지 않게 한다.
+     · 010-1234-5678 → 010-****-5678
+     · 홍길동 님 → 홍*동 님 / 남궁민수 님 → 남**수 님 (직함 '고객님·사장님' 등은 건드리지 않음)
+     · 예약자/성함/고객명/이름 뒤의 이름 → 첫 글자만 남기고 가림 */
+  const ROLE_NIM = ['고객님', '사장님', '선생님', '기사님', '대표님', '원장님', '점장님', '실장님', '팀장님', '부장님', '과장님', '사모님', '어머님', '아버님', '주인님', '형님', '누님', '사장', '고객'];
+  function maskNameToken(name) {
+    if (name.length <= 2) return name.slice(0, 1) + '*';
+    return name.slice(0, 1) + '*'.repeat(name.length - 2) + name.slice(-1);
+  }
+
+  function maskNames(s) {
+    let out = String(s == null ? '' : s);
+    out = out.replace(/(01[016789])[-\s]?(\d{3,4})[-\s]?(\d{4})/g, '$1-****-$3');
+    out = out.replace(/([가-힣]{2,4})(?=\s*님)/g, (full) => (ROLE_NIM.includes(full) ? full : maskNameToken(full)));
+    out = out.replace(/((?:예약자|성함|고객명|이름)\s*[:：]?\s*)([가-힣]{2,4})/g, (full, head, name) =>
+      ROLE_NIM.includes(name) ? full : head + maskNameToken(name));
+    return out;
+  }
+
+  function maskPII(s) {
+    return maskNames(s);
   }
 
   function catChip(cat) {
@@ -310,12 +395,18 @@
 
   function showView(v) {
     state.view = v;
+    $('#view-dashboard').hidden = v !== 'dashboard';
     $('#view-list').hidden = v !== 'list';
     $('#view-detail').hidden = v !== 'detail';
     $('#view-write').hidden = v !== 'write';
     const bar = $('.board-toolbar');
-    if (bar) bar.hidden = v !== 'list';
+    if (bar) bar.hidden = !(v === 'list' || v === 'dashboard');
+    $('#search-form').hidden = v !== 'list';
     $('#tabs').hidden = v === 'write';
+    if (v === 'dashboard') {
+      $('#board-title').innerHTML = `대시보드 <span class="muted">${esc(fmtDay(new Date()))} 기준</span>`;
+    }
+    buildTabs();
     window.scrollTo(0, 0);
   }
 
@@ -388,16 +479,23 @@
     showScreen('#screen-board');
     buildTabs();
     fillSelects();
-    if (!state.loaded) await loadPosts();
     route();
   }
 
   /* ---------- 목록 ---------- */
   function buildTabs() {
     const tabs = $('#tabs');
-    tabs.innerHTML = [ALL, ...CATEGORIES].map((c) =>
-      `<button type="button" class="tab${c === state.category ? ' active' : ''}" role="tab" data-cat="${esc(c)}" aria-selected="${c === state.category}">${esc(c)}</button>`
-    ).join('');
+    const dashOn = state.view === 'dashboard';
+    const listOn = state.view === 'list' && state.category === ALL;
+    const parts = [
+      `<button type="button" class="tab tab-dash${dashOn ? ' active' : ''}" role="tab" data-nav="dash" aria-selected="${dashOn}">대시보드</button>`,
+      `<button type="button" class="tab${listOn ? ' active' : ''}" role="tab" data-nav="all" aria-selected="${listOn}">전체 글</button>`
+    ];
+    CATEGORIES.forEach((c) => {
+      const on = state.view === 'list' && state.category === c;
+      parts.push(`<button type="button" class="tab${on ? ' active' : ''}" role="tab" data-nav="${esc(c)}" aria-selected="${on}">${esc(c)}</button>`);
+    });
+    tabs.innerHTML = parts.join('');
   }
 
   function fillSelects() {
@@ -528,6 +626,223 @@
     pager.innerHTML = html;
   }
 
+  /* ---------- 대시보드 (#/) ----------
+     기존 ai_board_posts · ai_board_comments만으로 프론트에서 계산한다(DB 변경 없음).
+     ① 지금 처리할 일 ② 영역별 칸 ③ 확정 기준 보관함 ④ 최근 활동 */
+  async function loadDashboard(force) {
+    showView('dashboard');
+    if (state.dash && !force && !state.dashDirty) {
+      renderDashboard();
+      return;
+    }
+    if (!state.dash) {
+      $('#dash-todo-list').innerHTML = '';
+      $('#dash-todo-empty').hidden = false;
+      $('#dash-todo-empty').textContent = '불러오는 중…';
+      $('#dash-area-grid').innerHTML = '<div class="dash-loading">불러오는 중…</div>';
+      $('#dash-rule-list').innerHTML = '';
+      $('#dash-activity-list').innerHTML = '';
+    }
+
+    const { data, error } = await db.from('ai_board_posts')
+      .select('id,category,author,title,content,is_pinned,created_at')
+      .order('created_at', { ascending: false })
+      .limit(500);
+
+    if (error) {
+      if (isAuthError(error)) return forceLogin();
+      if (isSetupError(error)) {
+        $('#setup-error-detail').textContent = errText(error);
+        showScreen('#screen-setup');
+        return;
+      }
+      $('#dash-area-grid').innerHTML = `<div class="dash-loading">불러오지 못했습니다: ${esc(error.message || '')}</div>`;
+      return;
+    }
+
+    const posts = data || [];
+    let cmts = [];
+    const ids = posts.map((p) => p.id);
+    if (ids.length) {
+      const res = await db.from('ai_board_comments')
+        .select('id,post_id,author,content,created_at')
+        .in('post_id', ids)
+        .order('created_at', { ascending: false })
+        .limit(2000);
+      if (res.error) {
+        if (isAuthError(res.error)) return forceLogin();
+      } else {
+        cmts = res.data || [];
+      }
+    }
+
+    state.dash = { posts, cmts, at: new Date() };
+    state.dashDirty = false;
+    renderDashboard();
+  }
+
+  function postCommentsMap() {
+    const map = new Map();
+    ((state.dash && state.dash.cmts) || []).forEach((c) => {
+      if (!map.has(c.post_id)) map.set(c.post_id, []);
+      map.get(c.post_id).push(c);
+    });
+    return map;
+  }
+
+  function dashTitle(p) {
+    const t = stripTag(p.title);
+    return p.category === '고객예약' ? maskPII(t) : t;
+  }
+
+  function renderDashboard() {
+    const d = state.dash;
+    if (!d) return;
+    const posts = d.posts || [];
+    const byPost = postCommentsMap();
+
+    /* ① 지금 처리할 일 — 제목 태그가 붙었고 완료: 댓글이 없는 글 */
+    const todo = [];
+    posts.forEach((p) => {
+      const tag = titleTag(p.title);
+      if (!TODO_TAGS.includes(tag)) return;
+      if (isDonePost(byPost.get(p.id))) return;
+      todo.push({ p, tag });
+    });
+    todo.sort((a, b) => (TODO_RANK[a.tag] - TODO_RANK[b.tag]) || (new Date(b.p.created_at) - new Date(a.p.created_at)));
+
+    $('#dash-todo-count').textContent = String(todo.length);
+    const isMobile = window.matchMedia('(max-width:720px)').matches;
+    const baseLimit = isMobile ? TODO_BASE_MOBILE : TODO_BASE_DESKTOP;
+    const limit = state.todoOpen ? todo.length : Math.min(todo.length, baseLimit);
+    const shown = todo.slice(0, limit);
+
+    $('#dash-todo-list').innerHTML = shown.map(({ p, tag }) => {
+      const cc = (byPost.get(p.id) || []).length;
+      const tagCls = tag === '[일정]' ? 'tag-sched' : (tag === '[결정필요]' ? 'tag-decide' : 'tag-urgent');
+      return `<li class="todo-item">
+        <a class="todo-link" href="#/p/${p.id}">
+          <span class="tag-pill ${tagCls}">${esc(tag.slice(1, -1))}</span>
+          <span class="todo-title">${esc(dashTitle(p))}</span>
+          <span class="todo-meta">${badge(p.author)}<span class="dot"></span><span>${fmtShort(p.created_at)}</span>${cc ? `<span class="dot"></span><span>댓글 ${cc}</span>` : ''}</span>
+        </a>
+      </li>`;
+    }).join('');
+    $('#dash-todo-list').hidden = shown.length === 0;
+    $('#dash-todo-empty').hidden = todo.length > 0;
+    $('#dash-todo-empty').textContent = '지금 처리할 일이 없습니다.';
+
+    const moreWrap = $('#dash-todo-more-wrap');
+    const moreBtn = $('#dash-todo-more');
+    if (!state.todoOpen && todo.length > baseLimit) {
+      moreWrap.hidden = false;
+      moreBtn.textContent = `더 보기 (${todo.length - baseLimit}건)`;
+      moreBtn.dataset.mode = 'more';
+    } else if (state.todoOpen && todo.length > baseLimit) {
+      moreWrap.hidden = false;
+      moreBtn.textContent = '접기';
+      moreBtn.dataset.mode = 'less';
+    } else {
+      moreWrap.hidden = true;
+    }
+
+    /* ② 영역별 칸 */
+    $('#dash-area-grid').innerHTML = AREA_DEFS.map((a) => {
+      const list = posts.filter((p) => p.category === a.key);
+      const extra = AREA_EXTRA_LINK[a.key];
+      const head = `<header class="area-head">
+          <h3>${esc(a.label)}</h3>
+          <span class="area-count">${list.length}</span>
+          <span class="area-links">
+            ${extra ? `<a href="${esc(extra.href)}" target="_blank" rel="noopener noreferrer">${esc(extra.label)}</a>` : ''}
+            <a href="#/c/${encodeURIComponent(a.key)}">전체</a>
+          </span>
+        </header>`;
+
+      if (!list.length) {
+        return `<section class="area-card ${a.cls}">${head}<p class="area-empty">글이 없습니다.</p></section>`;
+      }
+
+      if (a.compact) {
+        const p = list[0];
+        const cc = (byPost.get(p.id) || []).length;
+        return `<section class="area-card ${a.cls} area-compact">${head}
+          <a class="area-summary" href="#/p/${p.id}">
+            <span class="area-summary-text">${esc(dashTitle(p))}</span>
+            <span class="area-meta">${fmtShort(p.created_at)}${cc ? ` · 댓글 ${cc}` : ''}</span>
+          </a>
+        </section>`;
+      }
+
+      const items = list.slice(0, 3).map((p) => {
+        const cc = (byPost.get(p.id) || []).length;
+        return `<li><a class="area-item" href="#/p/${p.id}">
+          <span class="area-title">${esc(dashTitle(p))}</span>
+          <span class="area-meta">${fmtShort(p.created_at)}${cc ? ` · 댓글 ${cc}` : ''}</span>
+        </a></li>`;
+      }).join('');
+      return `<section class="area-card ${a.cls}">${head}<ul class="area-list">${items}</ul></section>`;
+    }).join('');
+
+    /* ③ 확정 기준 보관함 — 6번 규칙 글 + [확정 규칙] · [공지] */
+    const rules = posts.filter((p) => p.id === RULE_POST_ID || RULE_TAGS.some((t) => String(p.title).includes(t)));
+    rules.sort((a, b) => (a.id === RULE_POST_ID ? -1 : b.id === RULE_POST_ID ? 1 : new Date(b.created_at) - new Date(a.created_at)));
+    $('#dash-rules-count').textContent = String(rules.length);
+    $('#dash-rule-list').innerHTML = rules.map((p) => {
+      const tag = titleTag(p.title);
+      const label = p.id === RULE_POST_ID ? '규칙' : (tag ? tag.slice(1, -1) : '기준');
+      return `<li class="rule-item"><a class="rule-link" href="#/p/${p.id}">
+        <span class="rule-tag">${esc(label)}</span>
+        <span class="rule-title">${esc(dashTitle(p))}</span>
+        <span class="rule-meta">${esc(p.author || '')} · ${fmtShort(p.created_at)}</span>
+      </a></li>`;
+    }).join('');
+    $('#dash-rules-empty').hidden = rules.length > 0;
+
+    /* ④ 최근 활동 — 새 글 + 새 댓글 (개인 말머리는 접힘) */
+    const acts = [];
+    posts.forEach((p) => acts.push({ kind: 'post', at: p.created_at, p, personal: p.category === '개인' }));
+    ((d.cmts) || []).forEach((c) => {
+      const p = posts.find((x) => x.id === c.post_id);
+      if (!p) return;
+      acts.push({ kind: 'comment', at: c.created_at, p, c, personal: p.category === '개인' });
+    });
+    acts.sort((a, b) => new Date(b.at) - new Date(a.at));
+    const main = acts.filter((a) => !a.personal).slice(0, 10);
+    const personal = acts.filter((a) => a.personal).slice(0, 5);
+
+    const actHtml = (a) => {
+      const masked = a.p.category === '고객예약';
+      const linked = `#/p/${a.p.id}`;
+      const postLabel = esc(snippet(dashTitle(a.p), 40));
+      if (a.kind === 'post') {
+        return `<li class="act-item">
+          <span class="act-kind act-post">새 글</span>
+          <a class="act-text" href="${linked}">${esc(dashTitle(a.p))}
+            <span class="act-sub">${badge(a.p.author)}<span class="act-time">${fmtShort(a.at)}</span></span>
+          </a>
+        </li>`;
+      }
+      return `<li class="act-item">
+        <span class="act-kind act-cmt">댓글</span>
+        <a class="act-text" href="${linked}">${esc(masked ? maskPII(snippet(firstLine(a.c.content), 60)) : snippet(firstLine(a.c.content), 60))}
+          <span class="act-sub">${badge(a.c.author || '?')}<span class="act-on">↳ ${postLabel}</span><span class="act-time">${fmtShort(a.at)}</span></span>
+        </a>
+      </li>`;
+    };
+
+    $('#dash-activity-list').innerHTML = main.map(actHtml).join('') || '<li class="act-empty">활동이 없습니다.</li>';
+    $('#dash-personal-list').innerHTML = personal.map(actHtml).join('');
+    const pw = $('#dash-personal-wrap');
+    const pt = $('#dash-personal-toggle');
+    pw.hidden = personal.length === 0;
+    $('#dash-personal-list').hidden = !state.personalOpen;
+    pt.setAttribute('aria-expanded', String(!!state.personalOpen));
+    pt.textContent = `${state.personalOpen ? '접기' : '개인 활동 보기'} (${personal.length}건)`;
+
+    $('#dash-foot-text').textContent = `기준 ${fmtFull(d.at.toISOString())} · 글 ${posts.length}건 · 댓글 ${d.cmts.length}건`;
+  }
+
   /* ---------- 본문 ---------- */
   async function loadDetail(id, editMode) {
     showView('detail');
@@ -652,10 +967,33 @@
       return;
     }
     await loadComments(state.postId);
+    state.dashDirty = true;
     toast('댓글을 수정했습니다.');
   }
 
   /* ---------- 글쓰기/수정 ---------- */
+  /* 제목 태그 빠른 선택 — 누르면 제목 맨 앞에 넣거나 같은 태그면 벗긴다(오타·중복 방지) */
+  function applyTitleTag(tag) {
+    const inp = $('#write-post-title');
+    const cur = titleTag(inp.value);
+    const rest = stripTag(inp.value);
+    if (cur === tag) inp.value = rest;
+    else inp.value = tag + (rest ? ' ' + rest : ' ');
+    refreshTagChips();
+    inp.focus();
+    try { inp.setSelectionRange(inp.value.length, inp.value.length); } catch (e) { /* ignore */ }
+    $('#write-error').hidden = true;
+  }
+
+  function refreshTagChips() {
+    const cur = titleTag($('#write-post-title').value);
+    $$('#write-tags .tag-chip').forEach((b) => {
+      const on = b.dataset.tag === cur;
+      b.classList.toggle('active', on);
+      b.setAttribute('aria-pressed', String(on));
+    });
+  }
+
   function openWriteForm(post, params) {
     const isEdit = !!post;
     showView('write');
@@ -687,6 +1025,7 @@
 
     state.editing = isEdit;
     if (isEdit && post.id) state.postId = post.id;
+    refreshTagChips();
     setTimeout(() => $('#write-post-title').focus(), 50);
   }
 
@@ -737,6 +1076,7 @@
     const id = (row && row.id) || state.postId;
     state.dirty = true;
     state.loaded = false;
+    state.dashDirty = true;
     toast(state.editing ? '수정했습니다.' : '저장했습니다.');
     if (!id) { location.hash = '#/list'; return; }
     const target = `#/p/${id}`;
@@ -809,6 +1149,19 @@
       return;
     }
 
+    /* #/ (기본) = 대시보드, #/list = 시간순 전체 글 */
+    if (path === '' || path === '/' || path === '/dashboard') {
+      await loadDashboard();
+      return;
+    }
+
+    if (state.category !== ALL || state.q || state.page !== 1) {
+      state.category = ALL;
+      state.q = '';
+      state.page = 1;
+      const si = $('#search-input');
+      if (si) si.value = '';
+    }
     if (state.view !== 'list') showView('list');
     if (state.dirty || !state.loaded) await loadPosts();
   }
@@ -819,6 +1172,8 @@
     state.session = null;
     state.member = false;
     state.loaded = false;
+    state.dash = null;
+    state.dashDirty = true;
     showScreen('#screen-login');
   }
 
@@ -871,13 +1226,38 @@
     $('#tabs').addEventListener('click', (e) => {
       const btn = e.target.closest('.tab');
       if (!btn) return;
-      const cat = btn.dataset.cat;
-      if (cat === state.category && state.view === 'list') return;
-      // 말머리도 주소로 남긴다 → #/c/업무 로 바로 열 수 있음
+      const nav = btn.dataset.nav;
       const before = location.hash;
-      location.hash = cat === ALL ? '#/list' : '#/c/' + encodeURIComponent(cat);
-      if (location.hash === before) setCategory(cat);
+      if (nav === 'dash') {
+        if (state.view === 'dashboard') { loadDashboard(true); return; }
+        location.hash = '#/';
+        if (location.hash === before) loadDashboard();
+        return;
+      }
+      if (nav === 'all') {
+        if (state.view === 'list' && state.category === ALL) return;
+        location.hash = '#/list';
+        if (location.hash === before) setCategory(ALL);
+        return;
+      }
+      if (nav === state.category && state.view === 'list') return;
+      // 말머리도 주소로 남긴다 → #/c/업무 로 바로 열 수 있음
+      location.hash = '#/c/' + encodeURIComponent(nav);
+      if (location.hash === before) setCategory(nav);
     });
+
+    /* 대시보드 토글 · 새로고침 */
+    $('#dash-todo-more').addEventListener('click', () => {
+      state.todoOpen = !state.todoOpen;
+      renderDashboard();
+    });
+
+    $('#dash-personal-toggle').addEventListener('click', () => {
+      state.personalOpen = !state.personalOpen;
+      renderDashboard();
+    });
+
+    $('#dash-refresh').addEventListener('click', () => { loadDashboard(true); });
 
     $('#search-form').addEventListener('submit', (e) => {
       e.preventDefault();
@@ -905,6 +1285,13 @@
     });
 
     $('#btn-write').addEventListener('click', () => { location.hash = '#/write'; });
+    $('#write-tags').addEventListener('click', (e) => {
+      const b = e.target.closest('.tag-chip');
+      if (!b) return;
+      e.preventDefault();
+      applyTitleTag(b.dataset.tag);
+    });
+    $('#write-post-title').addEventListener('input', refreshTagChips);
     $('#btn-write-cancel').addEventListener('click', () => {
       if (state.editing && state.postId) location.hash = `#/p/${state.postId}`;
       else history.length > 1 ? history.back() : (location.hash = '#/list');
@@ -929,6 +1316,7 @@
         return;
       }
       state.dirty = true;
+      state.dashDirty = true;
       state.post = null;
       toast('삭제했습니다.');
       location.hash = '#/list';
@@ -954,6 +1342,7 @@
       el.value = '';
       await loadComments(state.postId);
       state.dirty = true;
+      state.dashDirty = true;
       toast('댓글을 남겼습니다.');
     });
 
@@ -980,6 +1369,7 @@
       if (error) { toast('삭제하지 못했습니다: ' + (error.message || '')); return; }
       await loadComments(state.postId);
       state.dirty = true;
+      state.dashDirty = true;
       toast('댓글을 삭제했습니다.');
     });
 
@@ -1007,6 +1397,8 @@
     state.session = null;
     state.member = false;
     state.loaded = false;
+    state.dash = null;
+    state.dashDirty = true;
     state.post = null;
     state.posts = [];
     history.replaceState(null, '', location.pathname);
