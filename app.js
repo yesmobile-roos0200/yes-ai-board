@@ -7,7 +7,12 @@
   const SUPABASE_KEY = 'sb_publishable_FLXtDN6cTA-blmsQU78B-Q_YbEYapeO';
 
   const CATEGORIES = ['업무', '고객예약', '개발·앱', '세무·정산', '개인'];
-  const AUTHORS = ['이지실버', '예스통신', '예스총괄', 'ChatGPT', 'Claude', '제미나이', 'Vooy', '종훈'];
+  /* 2026-11-27 종훈 님 확정: 피클 3명 이름 변경 — 이지실버→종훈비서 · 예스통신→예스매장 · 예스총괄→예스물류.
+     새 드롭다운 선택지는 새 이름만 두고, 옛 이름은 AUTHOR_CLASS(색)와 AUTHOR_RENAMES(저장값 이전)에서만 받는다. */
+  const AUTHORS = ['종훈비서', '예스매장', '예스물류', 'ChatGPT', 'Claude', '제미나이', 'Vooy', '종훈'];
+  const AUTHOR_RENAMES = { '이지실버': '종훈비서', '예스통신': '예스매장', '예스총괄': '예스물류' };
+  const canonicalAuthor = (name) => AUTHOR_RENAMES[name] || name;
+  const isKnownAuthor = (name) => AUTHORS.includes(name) || !!AUTHOR_RENAMES[name];
   const PAGE_SIZE = 15;
   const ALL = '전체';
 
@@ -46,9 +51,12 @@
     '개인': 'cat-personal'
   };
   const AUTHOR_CLASS = {
-    '이지실버': 'badge-jisilver',
-    '예스통신': 'badge-yes',
-    '예스총괄': 'badge-chonggwal',
+    '종훈비서': 'badge-jisilver',
+    '이지실버': 'badge-jisilver',        // 구 이름 글 배지 색 유지
+    '예스매장': 'badge-yes',
+    '예스통신': 'badge-yes',             // 구 이름
+    '예스물류': 'badge-chonggwal',
+    '예스총괄': 'badge-chonggwal',       // 구 이름
     'ChatGPT': 'badge-chatgpt',
     'Claude': 'badge-claude',
     '제미나이': 'badge-gemini',
@@ -545,6 +553,17 @@
     tabs.innerHTML = parts.join('');
   }
 
+  /* 옛 이름(이지실버·예스통신·예스총괄)으로 쓴 글을 수정할 때: 선택지에 그 이름이 없으면
+     임시 option을 넣어 값이 지워지거나 다른 이름으로 바뀌지 않게 한다. */
+  function ensureAuthorOption(name) {
+    if (!name || AUTHORS.includes(name)) return;
+    ['#write-author', '#comment-author', '#write-owner'].forEach((sel) => {
+      const el = $(sel);
+      if (!el || Array.from(el.options).some((o) => o.value === name)) return;
+      el.insertAdjacentHTML('beforeend', `<option value="${esc(name)}">${esc(name)} (구 이름)</option>`);
+    });
+  }
+
   function fillSelects() {
     const catOpts = CATEGORIES.map((c) => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
     const authorOpts = AUTHORS.map((a) => `<option value="${esc(a)}">${esc(a)}</option>`).join('');
@@ -552,7 +571,7 @@
     $('#write-author').innerHTML = authorOpts;
     $('#comment-author').innerHTML = authorOpts;
     $('#write-owner').innerHTML = '<option value="">없음</option>' + authorOpts;
-    const saved = localStorage.getItem('yes_ai_board_author');
+    const saved = canonicalAuthor(localStorage.getItem('yes_ai_board_author'));
     if (saved && AUTHORS.includes(saved)) {
       $('#write-author').value = saved;
       $('#comment-author').value = saved;
@@ -996,7 +1015,7 @@
     $('#btn-edit').hidden = !mine;
     $('#btn-delete').hidden = !mine;
     $('#comment-content').value = '';
-    const savedAuthor = localStorage.getItem('yes_ai_board_author');
+    const savedAuthor = canonicalAuthor(localStorage.getItem('yes_ai_board_author'));
     $('#comment-author').value = AUTHORS.includes(savedAuthor) ? savedAuthor : AUTHORS[0];
 
     await loadComments(id);
@@ -1106,7 +1125,8 @@
     $('#btn-write-submit').textContent = isEdit ? '수정 저장' : '저장';
     $('#write-error').hidden = true;
     $('#write-category').value = isEdit ? post.category : (state.category !== ALL ? state.category : CATEGORIES[0]);
-    const savedAuthor = localStorage.getItem('yes_ai_board_author');
+    if (isEdit) { ensureAuthorOption(post.author); ensureAuthorOption(post.owner); }
+    const savedAuthor = canonicalAuthor(localStorage.getItem('yes_ai_board_author'));
     $('#write-author').value = isEdit
       ? post.author
       : (AUTHORS.includes(savedAuthor) ? savedAuthor : AUTHORS[0]);
@@ -1120,7 +1140,7 @@
 
     // 딥링크 파라미터 (#/write?author=Vooy&category=업무&title=...&pin=1)
     if (!isEdit && params) {
-      const a = params.get('author');
+      const a = canonicalAuthor(params.get('author'));
       if (a && AUTHORS.includes(a)) {
         $('#write-author').value = a;
         localStorage.setItem('yes_ai_board_author', a);
@@ -1135,7 +1155,7 @@
       const pr = params.get('priority');
       if (pr && ['1', '2', '3'].includes(pr)) $('#write-priority').value = pr;
       const ow = params.get('owner');
-      if (ow && AUTHORS.includes(ow)) $('#write-owner').value = ow;
+      if (ow && isKnownAuthor(ow)) $('#write-owner').value = ow;
       const du = params.get('due');
       if (du && /^\d{4}-\d{2}-\d{2}$/.test(du)) $('#write-due').value = du;
     }
@@ -1171,7 +1191,7 @@
       category, author, title, content, is_pinned: isPinned,
       status: STATUSES.includes(status) ? status : null,
       priority: ['1', '2', '3'].includes(priority) ? Number(priority) : null,
-      owner: owner && AUTHORS.includes(owner) ? owner : null,
+      owner: owner && isKnownAuthor(owner) ? owner : null,
       due_date: /^\d{4}-\d{2}-\d{2}$/.test(dueDate) ? dueDate : null
     };
     let res;
