@@ -351,7 +351,7 @@ pre{margin:0;white-space:pre-wrap;word-break:break-word}
 .dash-more:hover{background:#f6f7fa;border-color:#d7dbe6}
 
 /* ② 영역별 칸 */
-.dash-areas{display:grid;grid-template-columns:repeat(var(--area-cols,4),minmax(0,1fr));gap:10px;padding:12px}
+.dash-areas{display:grid;grid-template-columns:repeat(var(--area-cols,4),minmax(0,1fr));gap:10px;padding:12px;align-items:start}
 .area-card{border:1px solid var(--line);border-top:2px solid var(--line);border-radius:10px;background:#fff;display:flex;flex-direction:column;overflow:hidden;min-width:0}
 .area-reserve{border-top-color:#e2a878}
 .area-dev{border-top-color:#b9a4e8}
