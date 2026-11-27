@@ -22,7 +22,10 @@
      2026-11-27 Claude 보완: 개발·앱 칸 앱별 최신 배포, ③과 중복 제외, 빈 칸 한 줄 접기, 모바일 영역 칸 가로 넘김.
      2026-11-27 Claude 2단계: 상태·중요도·담당·기한 칸(DB) 연결. 칸이 비어 있으면 1단계 규칙 그대로. */
   const TODO_TAGS = ['[결정필요]', '[긴급]', '[오류]', '[일정]'];
-  const TODO_RANK = { '[결정필요]': 0, '[긴급]': 1, '[오류]': 1, '[일정]': 2 };
+  /* ① 주요 · 최신 글 (2026-11-28 개편) — 예전 '지금 처리할 일'은 상태·태그가 비어 늘 0건이었다.
+     지금은 중요도 높은 미완료 글을 먼저(최대 3개) + 최근 작성·수정 글을 채워 최대 5개를 보여 준다. */
+  const KEY_POST_LIMIT = 5;
+  const KEY_IMPORTANT_LIMIT = 3;
   const RULE_POST_ID = 6;                       // 게시판 이용 규칙 글
   const RULE_TAGS = ['[확정 규칙]', '[공지]'];
   const AREA_DEFS = [
@@ -39,8 +42,6 @@
   const STATUS_CLASS = { '진행': 'st-doing', '결정필요': 'st-decide', '보류': 'st-hold', '완료': 'st-done' };
   const PRIORITY_LABEL = { 1: '중요도 1', 2: '중요도 2', 3: '중요도 3' };
   const DUE_SOON_DAYS = 7;
-  const TODO_BASE_MOBILE = 6;
-  const TODO_BASE_DESKTOP = 10;
 
   /* 결산·자료실(#/archive) — 2026-11-27 추가.
      DB 변경 없이 `결산·자료`·`세무·정산` 말머리와 제목 낱말로만 누적 자료를 골라낸다.
@@ -101,7 +102,6 @@
     arch: null,          // 결산·자료실 { posts, counts, at }
     archDirty: true,
     archFilter: 'all',
-    todoOpen: false,
     personalOpen: false
   };
 
@@ -411,59 +411,6 @@
     await copyText(buildPostMd(state.post, state.comments), '글과 댓글을 마크다운으로 복사했습니다.');
   }
 
-  async function copyRecent() {
-    const btn = $('#btn-copy-recent');
-    if (btn.disabled) return;
-    const label = btn.textContent;
-    btn.disabled = true;
-    btn.textContent = '불러오는 중…';
-    try {
-      const pinnedRes = await db.from('ai_board_posts')
-        .select('*').eq('is_pinned', true).order('created_at', { ascending: false }).limit(3);
-      const latestRes = await db.from('ai_board_posts')
-        .select('*').order('created_at', { ascending: false }).limit(5);
-      const err = pinnedRes.error || latestRes.error;
-      if (err) {
-        if (isAuthError(err)) return forceLogin();
-        toast('글을 불러오지 못했습니다: ' + (err.message || ''));
-        return;
-      }
-      const seen = new Set();
-      const posts = [];
-      [...(pinnedRes.data || []), ...(latestRes.data || [])].forEach((p) => {
-        if (seen.has(p.id)) return;
-        seen.add(p.id);
-        posts.push(p);
-      });
-      if (!posts.length) { toast('복사할 글이 없습니다.'); return; }
-
-      const ids = posts.map((p) => p.id);
-      const cmtRes = await db.from('ai_board_comments')
-        .select('*').in('post_id', ids).order('created_at', { ascending: true });
-      if (cmtRes.error) {
-        if (isAuthError(cmtRes.error)) return forceLogin();
-      }
-      const byPost = new Map();
-      (cmtRes.error ? [] : (cmtRes.data || [])).forEach((c) => {
-        if (!byPost.has(c.post_id)) byPost.set(c.post_id, []);
-        byPost.get(c.post_id).push(c);
-      });
-
-      const head = [
-        '# 예스AI 공용 게시판 — 최근 글 요약',
-        `기준 시각: ${fmtFull(new Date().toISOString())}`,
-        `게시판: ${boardUrl()}#/list`,
-        '아래는 게시판에서 뽑은 고정 글 + 최근 글과 댓글입니다. 이 맥락을 읽고 답해 주세요.',
-        ''
-      ].join('\n');
-      const body = posts.map((p) => buildPostMd(p, byPost.get(p.id) || [], { heading: true })).join('\n\n');
-      await copyText(head + '\n' + body + '\n', `최근 글 ${posts.length}건(고정 포함)을 복사했습니다.`);
-    } finally {
-      btn.disabled = false;
-      btn.textContent = label;
-    }
-  }
-
   let toastTimer = null;
   function toast(msg) {
     const el = $('#toast');
@@ -478,6 +425,8 @@
       $(s).hidden = s !== id;
     });
     $('#topbar-user').hidden = !state.session;
+    const writeBtn = $('#btn-write');
+    if (writeBtn) writeBtn.hidden = id !== '#screen-board';
   }
 
   function showView(v) {
@@ -763,7 +712,7 @@
     }
 
     const { data, error } = await db.from('ai_board_posts')
-      .select('id,category,author,title,content,is_pinned,created_at,status,priority,owner,due_date')
+      .select('id,category,author,title,content,is_pinned,created_at,updated_at,status,priority,owner,due_date')
       .order('created_at', { ascending: false })
       .limit(500);
 
@@ -813,76 +762,71 @@
     return p.category === '고객예약' ? maskPII(t) : t;
   }
 
+  /* 글의 기준 시각 — 작성(created_at)과 수정(updated_at) 중 더 최근 것 */
+  function postStamp(p) {
+    const c = new Date(p.created_at || 0).getTime() || 0;
+    const u = new Date(p.updated_at || 0).getTime() || 0;
+    return Math.max(c, u);
+  }
+
+  /* ① 주요 · 최신 글 선정 — ③ 확정 기준 보관함에 이미 있는 글(6번 규칙·[공지]·[확정 규칙])은 중복이라 뺀다.
+     1순위) 완료되지 않은 중요 글: 중요도 1 · 상태 결정필요/진행 · 제목 [긴급]·[결정필요]·[오류]·[일정]
+     2순위) 나머지는 최근 작성·수정 순(완료 글도 자리가 남으면 들어간다). */
+  function pickKeyPosts(posts, byPost) {
+    const isRulePost = (p) => p.id === RULE_POST_ID || RULE_TAGS.some((t) => String(p.title).includes(t));
+    const isDone = (p) => p.status === '완료' || isDonePost(byPost.get(p.id));
+    const pool = posts.filter((p) => !isRulePost(p) && p.status !== '보류');
+
+    const important = pool.filter((p) => !isDone(p) && (
+      Number(p.priority) === 1 ||
+      p.status === '결정필요' || p.status === '진행' ||
+      TODO_TAGS.includes(titleTag(p.title))
+    ));
+    important.sort((a, b) => (Number(a.priority) || 9) - (Number(b.priority) || 9) || postStamp(b) - postStamp(a));
+
+    const newest = pool.slice().sort((a, b) => postStamp(b) - postStamp(a));
+    const picked = [];
+    const seen = new Set();
+    const push = (p) => {
+      if (!p || seen.has(p.id) || picked.length >= KEY_POST_LIMIT) return;
+      seen.add(p.id);
+      picked.push(p);
+    };
+    important.slice(0, KEY_IMPORTANT_LIMIT).forEach(push);
+    newest.forEach(push);
+    return picked;
+  }
+
   function renderDashboard() {
     const d = state.dash;
     if (!d) return;
     const posts = d.posts || [];
     const byPost = postCommentsMap();
 
-    /* ① 지금 처리할 일
-       - 상태 칸이 있으면 상태로 판정: 결정필요는 항상, 진행은 중요도 1이거나 기한 7일 이내(지난 것 포함). 보류·완료는 제외.
-       - 상태 칸이 비어 있으면 1단계 규칙: 제목 태그([결정필요]·[긴급]·[오류]·[일정]) 또는 기한 7일 이내.
-       - 어느 쪽이든 완료: 댓글이 달리면 빠진다. */
-    const todo = [];
-    posts.forEach((p) => {
-      if (p.status === '완료' || p.status === '보류') return;
-      if (isDonePost(byPost.get(p.id))) return;
-      const n = dueDays(p.due_date);
-      const soon = n !== null && n <= DUE_SOON_DAYS;
-      let label = '';
-      let rank = 9;
-      if (p.status === '결정필요') { label = '결정필요'; rank = 0; }
-      else if (p.status === '진행') {
-        if (Number(p.priority) === 1) { label = '진행'; rank = 1; }
-        else if (soon) { label = '진행'; rank = 2; }
-        else return;
-      } else {
-        const tag = titleTag(p.title);
-        if (TODO_TAGS.includes(tag)) { label = tag.slice(1, -1); rank = TODO_RANK[tag]; }
-        else if (soon) { label = '기한'; rank = 2; }
-        else return;
-      }
-      todo.push({ p, label, rank, n });
-    });
-    todo.sort((a, b) => (a.rank - b.rank)
-      || ((a.n === null ? 99999 : a.n) - (b.n === null ? 99999 : b.n))
-      || ((Number(a.p.priority) || 9) - (Number(b.p.priority) || 9))
-      || (new Date(b.p.created_at) - new Date(a.p.created_at)));
+    /* ① 주요 · 최신 글 — 중요도 높은 미완료 글 먼저 + 최근 작성·수정 글, 최대 5개.
+       뽐뿌식 목록 행: 제목 16px + 1px 구분선 + 말머리/작성자/중요도·상태 + 오른쪽 날짜. */
+    const keyPosts = pickKeyPosts(posts, byPost);
+    $('#dash-todo-count').textContent = String(keyPosts.length);
 
-    $('#dash-todo-count').textContent = String(todo.length);
-    const isMobile = window.matchMedia('(max-width:720px)').matches;
-    const baseLimit = isMobile ? TODO_BASE_MOBILE : TODO_BASE_DESKTOP;
-    const limit = state.todoOpen ? todo.length : Math.min(todo.length, baseLimit);
-    const shown = todo.slice(0, limit);
-
-    $('#dash-todo-list').innerHTML = shown.map(({ p, label }) => {
+    $('#dash-todo-list').innerHTML = keyPosts.map((p) => {
       const cc = (byPost.get(p.id) || []).length;
-      const tagCls = (label === '일정' || label === '기한') ? 'tag-sched' : (label === '결정필요' ? 'tag-decide' : (label === '진행' ? 'tag-doing' : 'tag-urgent'));
-      return `<li class="todo-item">
-        <a class="todo-link" href="#/p/${p.id}">
-          <span class="tag-pill ${tagCls}">${esc(label)}</span>
-          <span class="todo-title">${esc(dashTitle(p))}</span>
-          <span class="todo-meta">${badge(p.author)}<span class="dot"></span><span>${fmtShort(p.created_at)}</span>${cc ? `<span class="dot"></span><span>댓글 ${cc}</span>` : ''}${flagChips(p, { noStatus: true, noPriority: p.status === '결정필요' })}</span>
+      const done = p.status === '완료' || isDonePost(byPost.get(p.id));
+      let mark = '';
+      if (!done && Number(p.priority) === 1) mark = '<span class="key-mark">중요</span>';
+      else if (!done && p.status) mark = `<span class="flag flag-status ${STATUS_CLASS[p.status] || ''}">${esc(p.status)}</span>`;
+      return `<li class="key-item">
+        <a class="key-link" href="#/p/${p.id}">
+          <span class="key-top">
+            <span class="key-title">${esc(dashTitle(p))}</span>
+            <span class="key-date">${postStamp(p) ? fmtShort(new Date(postStamp(p)).toISOString()) : ''}</span>
+          </span>
+          <span class="key-meta">${catChip(p.category)}${badge(p.author)}${mark}${cc ? `<span class="key-cmt">댓글 ${cc}</span>` : ''}</span>
         </a>
       </li>`;
     }).join('');
-    $('#dash-todo-list').hidden = shown.length === 0;
-    $('#dash-todo-empty').hidden = todo.length > 0;
-    $('#dash-todo-empty').textContent = '지금 처리할 일이 없습니다.';
-
-    const moreWrap = $('#dash-todo-more-wrap');
-    const moreBtn = $('#dash-todo-more');
-    if (!state.todoOpen && todo.length > baseLimit) {
-      moreWrap.hidden = false;
-      moreBtn.textContent = `더 보기 (${todo.length - baseLimit}건)`;
-      moreBtn.dataset.mode = 'more';
-    } else if (state.todoOpen && todo.length > baseLimit) {
-      moreWrap.hidden = false;
-      moreBtn.textContent = '접기';
-      moreBtn.dataset.mode = 'less';
-    } else {
-      moreWrap.hidden = true;
-    }
+    $('#dash-todo-list').hidden = keyPosts.length === 0;
+    $('#dash-todo-empty').hidden = keyPosts.length > 0;
+    $('#dash-todo-empty').textContent = '아직 글이 없습니다.';
 
     /* ② 영역별 칸
        - 확정 기준 보관함(③)에 들어가는 글(6번 규칙 글, [확정 규칙], [공지])은 영역 칸에서 빼서 중복 표시하지 않는다.
@@ -1583,11 +1527,6 @@
     });
 
     /* 대시보드 토글 · 새로고침 */
-    $('#dash-todo-more').addEventListener('click', () => {
-      state.todoOpen = !state.todoOpen;
-      renderDashboard();
-    });
-
     $('#dash-personal-toggle').addEventListener('click', () => {
       state.personalOpen = !state.personalOpen;
       renderDashboard();
@@ -1726,7 +1665,6 @@
     });
 
     $('#btn-copy-md').addEventListener('click', copyPostMd);
-    $('#btn-copy-recent').addEventListener('click', copyRecent);
 
     window.addEventListener('hashchange', route);
   }

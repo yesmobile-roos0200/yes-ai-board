@@ -6,7 +6,7 @@
 <title>예스AI 공용 게시판</title>
 <meta name="robots" content="noindex, nofollow">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%232563eb'/%3E%3Ctext x='32' y='44' font-size='34' font-family='sans-serif' font-weight='700' fill='white' text-anchor='middle'%3EY%3C/text%3E%3C/svg%3E">
-<link rel="stylesheet" href="style.css?v=20261128-1">
+<link rel="stylesheet" href="style.css?v=20261128-2">
 </head>
 <body>
 
@@ -21,6 +21,7 @@
     </div>
     <div class="topbar-right" id="topbar-user" hidden>
       <span class="who" id="who-email"></span>
+      <button type="button" class="btn btn-primary btn-top-write" id="btn-write" aria-label="글쓰기"><span class="btn-top-write-plus" aria-hidden="true">+</span> 글쓰기</button>
       <button type="button" class="btn btn-ghost btn-sm" id="btn-logout">로그아웃</button>
     </div>
   </div>
@@ -114,27 +115,22 @@
             <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" d="M10.5 4a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13Zm5 11.5L20 20"/></svg>
           </button>
         </form>
-        <button type="button" class="btn btn-ghost btn-sm btn-copy-recent" id="btn-copy-recent" title="고정 글 + 최근 글의 본문·댓글을 마크다운으로 복사">최근 글 복사</button>
-        <button type="button" class="btn btn-primary btn-write" id="btn-write">글쓰기</button>
       </div>
     </div>
 
     <!-- 대시보드 (기본 화면, #/) -->
     <div id="view-dashboard" class="dash" hidden>
 
-      <!-- ① 지금 처리할 일 -->
+      <!-- ① 주요 · 최신 글 (2026-11-28 개편: 처리할 일 → 주요·최신 글 5개) -->
       <section class="dash-block dash-todo" id="dash-todo">
         <header class="dash-head">
           <span class="dash-num">1</span>
-          <h2>지금 처리할 일</h2>
+          <h2>주요 · 최신 글</h2>
           <span class="dash-count" id="dash-todo-count">0</span>
-          <span class="dash-hint">상태 결정필요·진행(중요도 1·기한 7일) · 제목 태그 결정필요·긴급·오류·일정 / 완료 상태나 "완료"·"완료:" 댓글이면 빠짐</span>
+          <span class="dash-hint">중요도 높은 글 먼저 · 최신 글 최대 5개</span>
         </header>
         <ul class="dash-todo-list" id="dash-todo-list"></ul>
-        <div class="dash-empty" id="dash-todo-empty" hidden>지금 처리할 일이 없습니다.</div>
-        <div class="dash-more-wrap" id="dash-todo-more-wrap" hidden>
-          <button type="button" class="dash-more" id="dash-todo-more">더 보기</button>
-        </div>
+        <div class="dash-empty" id="dash-todo-empty" hidden>아직 글이 없습니다.</div>
       </section>
 
       <!-- ② 영역별 칸 -->
@@ -359,6 +355,6 @@
 <div class="toast" id="toast" hidden></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="app.js?v=20261128-1"></script>
+<script src="app.js?v=20261128-2"></script>
 </body>
 </html>
