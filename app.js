@@ -161,7 +161,9 @@
     return String(title == null ? '' : title).replace(/^\s*\[[^\]\n]{1,12}\]\s*/, '').trim();
   }
 
-  /* 댓글 첫 비공백 줄이 `완료:`로 시작하면 그 글은 완료 (본문 중간의 '완료:' 문장은 세지 않음) */
+  /* 완료 판정: 댓글 첫 비공백 줄이 `완료:`로 시작하거나, 첫 줄이 '완료' 한 단어(뒤에 . ! 。 하나까지)면 그 글은 완료.
+     '완료 여부 확인해줘'처럼 뒤에 다른 말이 붙은 문장, 본문 중간의 '완료:'는 세지 않는다. (2026-11-27 Claude: '완료'만 쓴 점주 댓글 인식) */
+  const DONE_LINE_RE = /^\s*완료\s*(?:[:：]|[.!。]?\s*$)/;
   function firstLine(text) {
     const lines = String(text == null ? '' : text).replace(/\r\n?/g, '\n').split('\n');
     for (let i = 0; i < lines.length; i++) {
@@ -171,7 +173,7 @@
   }
 
   function isDonePost(comments) {
-    return (comments || []).some((c) => /^\s*완료\s*:/.test(firstLine(c.content)));
+    return (comments || []).some((c) => DONE_LINE_RE.test(firstLine(c.content)));
   }
 
   /* 미리보기 한 줄 — 마크다운 기호를 띄고 길이를 줄인다. */
