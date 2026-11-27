@@ -312,25 +312,25 @@ pre{margin:0;white-space:pre-wrap;word-break:break-word}
 .dash-block{background:var(--card);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);overflow:hidden}
 .dash-head{display:flex;align-items:center;gap:8px;padding:11px 16px;background:#fafbfd;border-bottom:1px solid var(--line-soft);flex-wrap:wrap}
 .dash-head h2{font-size:14.5px;margin:0;letter-spacing:-.25px;font-weight:700}
-.dash-num{width:19px;height:19px;border-radius:6px;background:#eef1f7;color:#5a6272;font-size:11px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;flex:none}
+.dash-num{width:19px;height:19px;border-radius:6px;background:#e3ebfd;color:#2557c9;font-size:11px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;flex:none}
 .dash-count{font-size:11.5px;font-weight:700;color:#fff;background:#8a93a5;border-radius:999px;padding:1px 7px;line-height:1.55;min-width:20px;text-align:center}
 .dash-hint{margin-left:auto;font-size:11.5px;color:var(--muted);text-align:right;line-height:1.4}
 .dash-loading{padding:26px 16px;text-align:center;color:var(--muted);font-size:13px;grid-column:1/-1}
 
-/* ① 지금 처리할 일 — 주황 강조(빨강 없음) */
-.dash-todo{border-color:#f0d9c6}
-.dash-todo .dash-head{background:#fff7ed;border-bottom-color:#f6e3d2}
-.dash-todo .dash-head h2{color:#c1502a}
-.dash-todo .dash-num{background:#f7e2d1;color:#c1502a}
-.dash-todo .dash-count{background:#c1502a}
+/* ① 지금 처리할 일 — 블루톤 강조(2026-11-27: 주황 → 블루, 게시판 메인 색과 통일) */
+.dash-todo{border-color:#cfdcf7}
+.dash-todo .dash-head{background:#eaf1ff;border-bottom-color:#d6e2fb}
+.dash-todo .dash-head h2{color:#1d4ed8}
+.dash-todo .dash-num{background:#2563eb;color:#fff}
+.dash-todo .dash-count{background:#2563eb}
 .dash-todo-list{list-style:none;margin:0;padding:0}
 .dash-todo-list:empty{display:none}
 .todo-item{border-bottom:1px solid var(--line-soft)}
 .todo-item:last-child{border-bottom:0}
 .todo-link{display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 8px;padding:11px 16px;color:inherit}
-.todo-link:hover{background:#fffbf7;text-decoration:none}
+.todo-link:hover{background:#f5f8ff;text-decoration:none}
 .todo-title{font-size:14.2px;font-weight:600;line-height:1.45;color:var(--ink);word-break:break-word}
-.todo-link:hover .todo-title{color:#c1502a}
+.todo-link:hover .todo-title{color:var(--accent)}
 .todo-meta{grid-column:2;display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--muted);flex-wrap:wrap}
 .todo-meta .badge{font-size:11.2px;padding:1px 7px}
 .tag-pill{
@@ -389,17 +389,26 @@ pre{margin:0;white-space:pre-wrap;word-break:break-word}
 
 /* ④ 최근 활동 */
 .dash-act-list{list-style:none;margin:0;padding:0}
-.act-item{display:flex;gap:8px;align-items:flex-start;padding:9px 16px;border-bottom:1px solid var(--line-soft)}
+.act-item{border-bottom:1px solid var(--line-soft);position:relative}
 .act-item:last-child{border-bottom:0}
-.act-kind{flex:none;font-size:10.5px;font-weight:700;border-radius:5px;padding:2px 6px;line-height:1.5;margin-top:1px;border:1px solid transparent;white-space:nowrap}
-.act-post{background:#eef3ff;color:#2257c9;border-color:#dbe7fc}
-.act-cmt{background:#f4f0fe;color:#6b46d6;border-color:#e6dcfb}
-.act-text{flex:1;min-width:0;font-size:13px;line-height:1.5;color:var(--ink);word-break:break-word}
-.act-text:hover{text-decoration:none;color:var(--accent)}
-.act-sub{display:flex;align-items:center;gap:6px;margin-top:3px;font-size:11px;color:var(--muted);flex-wrap:wrap}
+.act-link{display:block;padding:10px 16px 10px 22px;color:var(--ink)}
+.act-link:hover{text-decoration:none;background:#f7f9fd}
+.act-link:hover .act-title{color:var(--accent)}
+.act-top{display:flex;align-items:baseline;gap:10px}
+.act-dot{position:absolute;left:9px;top:17px;width:7px;height:7px;border-radius:50%;background:transparent}
+.act-item.is-new{background:#f5f8ff}
+.act-item.is-new .act-dot{background:#2f6bff}
+.act-title{flex:1;min-width:0;font-size:14px;font-weight:600;line-height:1.45;word-break:break-word;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.act-item.is-new .act-title{font-weight:700}
+.act-time{flex:none;font-size:11.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+.act-sub{display:flex;align-items:center;gap:6px;margin-top:5px;font-size:12px;color:#5b6373;flex-wrap:wrap;min-width:0}
+.act-sub .cat-chip{font-size:10.8px;padding:2px 6px;line-height:1.3}
 .act-sub .badge{font-size:10.8px;padding:1px 6px}
-.act-on{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%;color:#8a93a5}
-.act-time{margin-left:auto}
+.act-kind{flex:none;font-size:10.5px;font-weight:700;border-radius:5px;padding:1px 6px;line-height:1.5;white-space:nowrap}
+.act-post{background:#2f6bff;color:#fff}
+.act-count{flex:none;font-size:11.5px;font-weight:600;color:#5b6373}
+.act-done{flex:none;font-size:10.8px;font-weight:700;color:#1f7a4c;background:#e8f6ee;border-radius:5px;padding:1px 6px}
+.act-snip{flex:1 1 200px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#4b5363}
 .act-empty{padding:20px 16px;text-align:center;color:var(--muted);font-size:13px}
 .act-empty:last-child{border-bottom:0}
 .dash-act-personal{background:#fbfbfd}
@@ -422,6 +431,9 @@ pre{margin:0;white-space:pre-wrap;word-break:break-word}
 
 /* 모바일 */
 @media (max-width:720px){
+  .act-link{padding:10px 12px 10px 20px}
+  .act-dot{left:8px}
+  .act-snip{flex-basis:100%}
   .wrap{padding:12px 12px 40px}
   .topbar-inner{padding:10px 14px}
   .brand-text small{display:none}

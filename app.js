@@ -177,6 +177,20 @@
   }
 
   /* 미리보기 한 줄 — 마크다운 기호를 띄고 길이를 줄인다. */
+  /* 최근 활동 요약용: '결론'·'근거' 같은 소제목만 있는 줄은 건너뛰고 첫 내용 줄을 쓴다 */
+  const ACT_HEAD_RE = /^(결론|근거|배경|변경|변경사항|근거\/변경사항|근거·변경사항|다음 할 일|쓰는 법|확인|요약|참고|보완|공유|전달)\s*[:：]?$/;
+  function actSummary(text, done) {
+    const lines = String(text == null ? '' : text).replace(/\r\n?/g, '\n').replace(/```[\s\S]*?```/g, ' ').split('\n');
+    for (let i = 0; i < lines.length; i++) {
+      let s = lines[i].replace(/[*#>`|~]/g, ' ').replace(/^\s*[-•·]\s+/, '').replace(/^\s*\d+[.)]\s+/, '').replace(/\s+/g, ' ').trim();
+      if (!s) continue;
+      if (i === 0 && done) { s = s.replace(/^완료\s*[:：]?\s*/, '').replace(/^[.!。]$/, '').trim(); if (!s) continue; }
+      if (ACT_HEAD_RE.test(s)) continue;
+      return s.replace(/^(결론|요약)\s*[:：]\s*/, '');
+    }
+    return '';
+  }
+
   function snippet(text, n) {
     const t = String(text == null ? '' : text)
       .replace(/```[\s\S]*?```/g, ' ')
@@ -922,34 +936,49 @@
     }).join('');
     $('#dash-rules-empty').hidden = rules.length > 0;
 
-    /* ④ 최근 활동 — 새 글 + 새 댓글 (개인 말머리는 접힘) */
-    const acts = [];
-    posts.forEach((p) => acts.push({ kind: 'post', at: p.created_at, p, personal: p.category === '개인' }));
+    /* ④ 최근 활동 — 글 단위로 묶어서 보여 준다 (2026-11-27 Claude 개선)
+       예전: 댓글 첫 줄('결론', '보완:' 등)이 큰 글씨로 나오고 어느 글인지는 작은 회색 줄에만 있어
+       무슨 일인지 한눈에 안 보였고, 같은 글이 여러 줄 차지했다.
+       지금: 한 줄 = 한 글. 큰 글씨는 글 제목, 아래 줄은 말머리 · 댓글 수 · 마지막 작성자 · 의미 있는 요약.
+       지난번 대시보드를 연 뒤 새로 생긴 활동은 왼쪽 파란 점 + 연한 배경으로 표시한다(브라우저별 기억). */
+    const ACT_SEEN_KEY = 'yes-ai-board-act-seen';
+    if (state.actSeenBase == null) state.actSeenBase = Number(localStorage.getItem(ACT_SEEN_KEY) || 0);
+    const seenBase = state.actSeenBase;
+    const threadMap = new Map();
+    posts.forEach((p) => threadMap.set(p.id, { p, cmts: [], last: p.created_at, personal: p.category === '개인' }));
     ((d.cmts) || []).forEach((c) => {
-      const p = posts.find((x) => x.id === c.post_id);
-      if (!p) return;
-      acts.push({ kind: 'comment', at: c.created_at, p, c, personal: p.category === '개인' });
+      const t = threadMap.get(c.post_id);
+      if (!t) return;
+      t.cmts.push(c);
+      if (new Date(c.created_at) > new Date(t.last)) t.last = c.created_at;
     });
-    acts.sort((a, b) => new Date(b.at) - new Date(a.at));
-    const main = acts.filter((a) => !a.personal).slice(0, 10);
-    const personal = acts.filter((a) => a.personal).slice(0, 5);
+    const threads = [...threadMap.values()].sort((a, b) => new Date(b.last) - new Date(a.last));
+    const main = threads.filter((t) => !t.personal).slice(0, 8);
+    const personal = threads.filter((t) => t.personal).slice(0, 5);
+    const newest = threads.reduce((m, t) => Math.max(m, new Date(t.last).getTime() || 0), 0);
+    if (newest) localStorage.setItem(ACT_SEEN_KEY, String(newest));
 
-    const actHtml = (a) => {
-      const masked = a.p.category === '고객예약';
-      const linked = `#/p/${a.p.id}`;
-      const postLabel = esc(snippet(dashTitle(a.p), 40));
-      if (a.kind === 'post') {
-        return `<li class="act-item">
-          <span class="act-kind act-post">새 글</span>
-          <a class="act-text" href="${linked}">${esc(dashTitle(a.p))}
-            <span class="act-sub">${badge(a.p.author)}<span class="act-time">${fmtShort(a.at)}</span></span>
-          </a>
-        </li>`;
+    const actHtml = (t) => {
+      /* 요약 줄 마스킹: 고객예약은 이름·전화번호, 그 외 말머리는 전화번호만 */
+      const mask = (s) => (t.p.category === '고객예약' ? maskPII(s) : String(s).replace(/(01[016789])[-. ]?(\d{3,4})[-. ]?(\d{4})/g, '$1-****-$3'));
+      const lastMs = new Date(t.last).getTime();
+      const isNew = seenBase > 0 && lastMs > seenBase;
+      const postIsNew = seenBase > 0 ? new Date(t.p.created_at).getTime() > seenBase : t.cmts.length === 0;
+      const cm = t.cmts.slice().sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+      const lastC = cm[cm.length - 1];
+      let sub = catChip(t.p.category);
+      if (postIsNew || !lastC) sub += `<span class="act-kind act-post">새 글</span>${badge(t.p.author)}`;
+      if (lastC) {
+        const done = DONE_LINE_RE.test(firstLine(lastC.content));
+        const summ = actSummary(lastC.content, done);
+        sub += `<span class="act-count">댓글 ${cm.length}</span>${badge(lastC.author || '?')}`;
+        if (done) sub += '<span class="act-done">✓ 완료</span>';
+        if (summ) sub += `<span class="act-snip">${esc(mask(snippet(summ, 70)))}</span>`;
       }
-      return `<li class="act-item">
-        <span class="act-kind act-cmt">댓글</span>
-        <a class="act-text" href="${linked}">${esc(masked ? maskPII(snippet(firstLine(a.c.content), 60)) : snippet(firstLine(a.c.content), 60))}
-          <span class="act-sub">${badge(a.c.author || '?')}<span class="act-on">↳ ${postLabel}</span><span class="act-time">${fmtShort(a.at)}</span></span>
+      return `<li class="act-item${isNew ? ' is-new' : ''}">
+        <a class="act-link" href="#/p/${t.p.id}">
+          <span class="act-top"><span class="act-dot" aria-hidden="true"></span><span class="act-title">${esc(dashTitle(t.p))}</span><span class="act-time">${fmtShort(t.last)}</span></span>
+          <span class="act-sub">${sub}</span>
         </a>
       </li>`;
     };
