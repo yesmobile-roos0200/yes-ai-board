@@ -554,16 +554,15 @@
   }
 
   /* ---------- 목록 ---------- */
-  /* 탭은 두 줄로 나눠 만든다 — 주요 화면(대시보드·전체 글·📚 결산·자료실) / 말머리.
-     2026-11-27: 모바일 390px에서 탭이 넘치지 않도록 주요 화면 3개는 한 줄 고정, 말머리는 가로 스크롤. */
+  /* 탭은 두 줄로 나눠 만든다 — 주요 화면(전체 글·결산·자료실) / 말머리.
+     2026-11-27: 모바일 390px에서 탭이 넘치지 않도록 주요 화면은 한 줄 고정, 말머리는 3열×2줄.
+     2026-11-28: `대시보드` 탭 삭제(브랜드 `예스AI`를 누르면 대시보드) · `📚` 이모지 제거 → 주요 화면 2개. */
   function buildTabs() {
-    const dashOn = state.view === 'dashboard';
     const listOn = state.view === 'list' && state.category === ALL;
     const archOn = state.view === 'archive';
     const mainParts = [
-      `<button type="button" class="tab tab-dash${dashOn ? ' active' : ''}" role="tab" data-nav="dash" aria-selected="${dashOn}">대시보드</button>`,
       `<button type="button" class="tab${listOn ? ' active' : ''}" role="tab" data-nav="all" aria-selected="${listOn}">전체 글</button>`,
-      `<button type="button" class="tab tab-arch${archOn ? ' active' : ''}" role="tab" data-nav="archive" aria-selected="${archOn}"><span class="tab-arch-ico" aria-hidden="true">📚</span> 결산·자료실</button>`
+      `<button type="button" class="tab tab-arch${archOn ? ' active' : ''}" role="tab" data-nav="archive" aria-selected="${archOn}">결산·자료실</button>`
     ];
     const catParts = CATEGORIES.map((c) => {
       const on = state.view === 'list' && state.category === c;
@@ -1596,12 +1595,6 @@
       if (!btn) return;
       const nav = btn.dataset.nav;
       const before = location.hash;
-      if (nav === 'dash') {
-        if (state.view === 'dashboard') { loadDashboard(true); return; }
-        location.hash = '#/';
-        if (location.hash === before) loadDashboard();
-        return;
-      }
       if (nav === 'archive') {
         if (state.view === 'archive') { loadArchive(true); return; }
         location.hash = '#/archive';
