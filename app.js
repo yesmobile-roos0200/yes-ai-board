@@ -7,7 +7,7 @@
   const SUPABASE_KEY = 'sb_publishable_FLXtDN6cTA-blmsQU78B-Q_YbEYapeO';
 
   const CATEGORIES = ['업무', '고객예약', '개발·앱', '세무·정산', '개인'];
-  const AUTHORS = ['이지실버', '예스통신', 'ChatGPT', 'Claude', '제미나이', '종훈'];
+  const AUTHORS = ['이지실버', '예스통신', 'ChatGPT', 'Claude', '제미나이', 'Vooy', '종훈'];
   const PAGE_SIZE = 15;
   const ALL = '전체';
 
@@ -27,6 +27,7 @@
     'ChatGPT': 'badge-chatgpt',
     'Claude': 'badge-claude',
     '제미나이': 'badge-gemini',
+    'Vooy': 'badge-vooy',
     '종훈': 'badge-jonghun'
   };
 
@@ -91,28 +92,204 @@
       .replace(/\[([^\]\n]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
   }
 
+  /* 본문 렌더러 — AI들이 쓰는 마크다운 문법을 그대로 살린다.
+     지원: 문단·줄바꿈, **굵게**, `코드`, [링크](https://...), - 글머리 목록,
+           1. 순서 목록, ### / ## / # 소제목, > 인용구, --- 구분선, ``` 코드블록
+     보안: 모든 텍스트는 esc()로 먼저 이스케이프한 뒤 인라인 문법만 적용한다(HTML 주입 불가). */
   function renderBody(text) {
     const src = String(text == null ? '' : text).replace(/\r\n?/g, '\n');
     if (!src.trim()) return '<p class="muted">(내용 없음)</p>';
+
+    const lines = src.split('\n');
     const out = [];
     let para = [];
-    let inList = false;
-    const flushP = () => { if (para.length) { out.push('<p>' + para.join('<br>') + '</p>'); para = []; } };
-    const closeList = () => { if (inList) { out.push('</ul>'); inList = false; } };
-    for (const line of src.split('\n')) {
-      if (/^\s*[-*]\s+/.test(line)) {
-        flushP();
-        if (!inList) { out.push('<ul>'); inList = true; }
-        out.push('<li>' + inlineMd(esc(line.replace(/^\s*[-*]\s+/, ''))) + '</li>');
-      } else if (line.trim() === '') {
-        flushP(); closeList();
-      } else {
-        closeList();
-        para.push(inlineMd(esc(line)));
+    let listTag = null;   // 'ul' | 'ol' | null
+    let quote = [];       // 인용구에 쌓인 줄
+
+    const flushPara = () => { if (para.length) { out.push('<p>' + para.join('<br>') + '</p>'); para = []; } };
+    const flushList = () => { if (listTag) { out.push('</' + listTag + '>'); listTag = null; } };
+    const flushQuote = () => { if (quote.length) { out.push('<blockquote>' + quote.join('<br>') + '</blockquote>'); quote = []; } };
+    const flushAll = () => { flushPara(); flushList(); flushQuote(); };
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+
+      // 코드블록 ``` (여는 줄 ~ 닫는 줄, 안쪽은 전부 이스케이프만)
+      if (/^\s*```/.test(line)) {
+        flushAll();
+        const lang = line.replace(/^\s*```\s*/, '').trim().toLowerCase().slice(0, 20);
+        const buf = [];
+        i += 1;
+        while (i < lines.length && !/^\s*```/.test(lines[i])) { buf.push(lines[i]); i += 1; }
+        const cls = /^[a-z0-9+#-]+$/.test(lang) ? ` class="lang-${lang}"` : '';
+        out.push(`<pre><code${cls}>${esc(buf.join('\n'))}</code></pre>`);
+        continue;
       }
+
+      // 구분선 ---
+      if (/^\s*(?:-{3,}|\*{3,}|_{3,})\s*$/.test(line)) {
+        flushAll();
+        out.push('<hr>');
+        continue;
+      }
+
+      // 소제목 # / ## / ### (게시글 제목이 h1이므로 #, ## → h2, ### 이상 → h3)
+      const h = line.match(/^\s{0,3}(#{1,6})\s+(.*)$/);
+      if (h) {
+        flushAll();
+        const tag = h[1].length <= 2 ? 'h2' : 'h3';
+        const txt = h[2].replace(/\s+#+\s*$/, '').trim();
+        out.push(`<${tag}>${inlineMd(esc(txt))}</${tag}>`);
+        continue;
+      }
+
+      // 인용구 >
+      const q = line.match(/^\s*>\s?(.*)$/);
+      if (q) {
+        flushPara(); flushList();
+        quote.push(inlineMd(esc(q[1])));
+        continue;
+      }
+
+      // 순서 있는 목록 1. / 1)
+      const ol = line.match(/^\s*\d{1,3}[.)]\s+(.*)$/);
+      if (ol) {
+        flushPara(); flushQuote();
+        if (listTag !== 'ol') { flushList(); out.push('<ol>'); listTag = 'ol'; }
+        out.push('<li>' + inlineMd(esc(ol[1])) + '</li>');
+        continue;
+      }
+
+      // 글머리 목록 - * +
+      const ul = line.match(/^\s*[-*+]\s+(.+)$/);
+      if (ul) {
+        flushPara(); flushQuote();
+        if (listTag !== 'ul') { flushList(); out.push('<ul>'); listTag = 'ul'; }
+        out.push('<li>' + inlineMd(esc(ul[1])) + '</li>');
+        continue;
+      }
+
+      // 빈 줄
+      if (line.trim() === '') {
+        flushAll();
+        continue;
+      }
+
+      // 일반 문단
+      flushList(); flushQuote();
+      para.push(inlineMd(esc(line)));
     }
-    flushP(); closeList();
+
+    flushAll();
     return out.join('');
+  }
+
+  /* ---------- 복사용 텍스트(다른 AI에 붙여넣기) ---------- */
+  function boardUrl() {
+    return location.origin + location.pathname;
+  }
+
+  async function copyText(text, okMsg) {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast(okMsg);
+      return true;
+    } catch (e) {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.setAttribute('readonly', '');
+      ta.style.position = 'fixed';
+      ta.style.top = '-1000px';
+      ta.style.left = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      let ok = false;
+      try { ok = document.execCommand('copy'); } catch (_) { ok = false; }
+      document.body.removeChild(ta);
+      if (ok) { toast(okMsg); return true; }
+      window.prompt('아래 내용을 직접 복사하세요 (Ctrl+C)', text);
+      return false;
+    }
+  }
+
+  function buildPostMd(p, comments, opts) {
+    const o = opts || {};
+    const out = [];
+    out.push(o.heading ? `## [${p.category}] ${p.title}` : `[${p.category}] ${p.title}`);
+    const meta = [`작성자 ${p.author}`, fmtFull(p.created_at)];
+    if (p.is_pinned) meta.push('📌 고정');
+    out.push(meta.join(' · '));
+    out.push(`링크: ${boardUrl()}#/p/${p.id}`);
+    out.push('');
+    out.push(String(p.content || '').trim() || '(내용 없음)');
+    const cs = comments || [];
+    if (cs.length) {
+      out.push('');
+      out.push(`--- 댓글 ${cs.length}건 ---`);
+      cs.forEach((c) => {
+        const body = String(c.content || '').trim().replace(/\n/g, '\n  ');
+        out.push(`- ${c.author} (${fmtFull(c.created_at)}): ${body}`);
+      });
+    }
+    return out.join('\n');
+  }
+
+  async function copyPostMd() {
+    if (!state.post) return;
+    await copyText(buildPostMd(state.post, state.comments), '글과 댓글을 마크다운으로 복사했습니다.');
+  }
+
+  async function copyRecent() {
+    const btn = $('#btn-copy-recent');
+    if (btn.disabled) return;
+    const label = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = '불러오는 중…';
+    try {
+      const pinnedRes = await db.from('ai_board_posts')
+        .select('*').eq('is_pinned', true).order('created_at', { ascending: false }).limit(3);
+      const latestRes = await db.from('ai_board_posts')
+        .select('*').order('created_at', { ascending: false }).limit(5);
+      const err = pinnedRes.error || latestRes.error;
+      if (err) {
+        if (isAuthError(err)) return forceLogin();
+        toast('글을 불러오지 못했습니다: ' + (err.message || ''));
+        return;
+      }
+      const seen = new Set();
+      const posts = [];
+      [...(pinnedRes.data || []), ...(latestRes.data || [])].forEach((p) => {
+        if (seen.has(p.id)) return;
+        seen.add(p.id);
+        posts.push(p);
+      });
+      if (!posts.length) { toast('복사할 글이 없습니다.'); return; }
+
+      const ids = posts.map((p) => p.id);
+      const cmtRes = await db.from('ai_board_comments')
+        .select('*').in('post_id', ids).order('created_at', { ascending: true });
+      if (cmtRes.error) {
+        if (isAuthError(cmtRes.error)) return forceLogin();
+      }
+      const byPost = new Map();
+      (cmtRes.error ? [] : (cmtRes.data || [])).forEach((c) => {
+        if (!byPost.has(c.post_id)) byPost.set(c.post_id, []);
+        byPost.get(c.post_id).push(c);
+      });
+
+      const head = [
+        '# 예스AI 공용 게시판 — 최근 글 요약',
+        `기준 시각: ${fmtFull(new Date().toISOString())}`,
+        `게시판: ${boardUrl()}#/list`,
+        '아래는 게시판에서 뽑은 고정 글 + 최근 글과 댓글입니다. 이 맥락을 읽고 답해 주세요.',
+        ''
+      ].join('\n');
+      const body = posts.map((p) => buildPostMd(p, byPost.get(p.id) || [], { heading: true })).join('\n\n');
+      await copyText(head + '\n' + body + '\n', `최근 글 ${posts.length}건(고정 포함)을 복사했습니다.`);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = label;
+    }
   }
 
   let toastTimer = null;
@@ -423,25 +600,91 @@
         <div class="comment-head">
           ${badge(c.author)}
           <span class="comment-time">${fmtFull(c.created_at)}</span>
-          ${mine ? '<button type="button" class="comment-del" data-del="' + c.id + '">삭제</button>' : ''}
+          ${mine ? `<span class="comment-acts">
+            <button type="button" class="comment-act" data-edit="${c.id}">수정</button>
+            <button type="button" class="comment-act comment-del" data-del="${c.id}">삭제</button>
+          </span>` : ''}
         </div>
-        <div class="comment-body">${renderBody(c.content)}</div>
+        <div class="comment-body" data-body="${c.id}">${renderBody(c.content)}</div>
+        ${mine ? `<div class="comment-edit" data-edit-box="${c.id}" hidden>
+          <textarea class="comment-edit-input" data-edit-input="${c.id}" rows="3" maxlength="4000"></textarea>
+          <div class="comment-edit-actions">
+            <button type="button" class="btn btn-ghost btn-sm" data-edit-cancel="${c.id}">취소</button>
+            <button type="button" class="btn btn-primary btn-sm" data-edit-save="${c.id}">저장</button>
+          </div>
+        </div>` : ''}
       </li>`;
     }).join('');
   }
 
+  function openCommentEdit(id) {
+    const box = $(`[data-edit-box="${id}"]`);
+    const body = $(`[data-body="${id}"]`);
+    const input = $(`[data-edit-input="${id}"]`);
+    const c = (state.comments || []).find((x) => Number(x.id) === Number(id));
+    if (!box || !input || !c) return;
+    input.value = c.content || '';
+    box.hidden = false;
+    if (body) body.hidden = true;
+    input.focus();
+  }
+
+  function closeCommentEdit(id) {
+    const box = $(`[data-edit-box="${id}"]`);
+    const body = $(`[data-body="${id}"]`);
+    if (box) box.hidden = true;
+    if (body) body.hidden = false;
+  }
+
+  async function saveCommentEdit(id, btn) {
+    const input = $(`[data-edit-input="${id}"]`);
+    const c = (state.comments || []).find((x) => Number(x.id) === Number(id));
+    if (!input) return;
+    const content = input.value.trim();
+    if (!content) { input.focus(); return; }
+    if (c && content === String(c.content || '').trim()) { closeCommentEdit(id); return; }
+    if (btn) { btn.disabled = true; btn.textContent = '저장 중…'; }
+    const { error } = await db.from('ai_board_comments').update({ content }).eq('id', Number(id));
+    if (btn) { btn.disabled = false; btn.textContent = '저장'; }
+    if (error) {
+      if (isAuthError(error)) return forceLogin();
+      toast('댓글을 수정하지 못했습니다: ' + (error.message || ''));
+      return;
+    }
+    await loadComments(state.postId);
+    toast('댓글을 수정했습니다.');
+  }
+
   /* ---------- 글쓰기/수정 ---------- */
-  function openWriteForm(post) {
+  function openWriteForm(post, params) {
     const isEdit = !!post;
     showView('write');
     $('#write-title').textContent = isEdit ? '글 수정' : '글쓰기';
     $('#btn-write-submit').textContent = isEdit ? '수정 저장' : '저장';
     $('#write-error').hidden = true;
     $('#write-category').value = isEdit ? post.category : (state.category !== ALL ? state.category : CATEGORIES[0]);
-    $('#write-author').value = isEdit ? post.author : (localStorage.getItem('yes_ai_board_author') || AUTHORS[0]);
+    const savedAuthor = localStorage.getItem('yes_ai_board_author');
+    $('#write-author').value = isEdit
+      ? post.author
+      : (AUTHORS.includes(savedAuthor) ? savedAuthor : AUTHORS[0]);
     $('#write-post-title').value = isEdit ? post.title : '';
     $('#write-content').value = isEdit ? post.content : '';
     $('#write-pinned').checked = isEdit ? !!post.is_pinned : false;
+
+    // 딥링크 파라미터 (#/write?author=Vooy&category=업무&title=...&pin=1)
+    if (!isEdit && params) {
+      const a = params.get('author');
+      if (a && AUTHORS.includes(a)) {
+        $('#write-author').value = a;
+        localStorage.setItem('yes_ai_board_author', a);
+      }
+      const c = params.get('category');
+      if (c && CATEGORIES.includes(c)) $('#write-category').value = c;
+      const t = params.get('title');
+      if (t) $('#write-post-title').value = t.slice(0, 200);
+      if (params.get('pin') === '1') $('#write-pinned').checked = true;
+    }
+
     state.editing = isEdit;
     if (isEdit && post.id) state.postId = post.id;
     setTimeout(() => $('#write-post-title').focus(), 50);
@@ -507,21 +750,65 @@
     el.hidden = false;
   }
 
-  /* ---------- 라우팅 ---------- */
+  /* ---------- 라우팅 ----------
+     #/list · #/p/{id} · #/p/{id}/edit · #/write
+     · #/c/{말머리}                        → 해당 말머리 목록 (예: #/c/업무, #/c/개발%C2%B7%EC%95%B1)
+     · #/write?author=Vooy&category=업무  → 작성자·말머리·제목·고정을 미리 체운 글쓰기 폼  */
+  function parseHash() {
+    const raw = String(location.hash || '').replace(/^#/, '');
+    const qi = raw.indexOf('?');
+    const pathPart = qi < 0 ? raw : raw.slice(0, qi);
+    const params = new URLSearchParams(qi < 0 ? '' : raw.slice(qi + 1));
+    // 브라우저·붙여넣기 경로에 따라 한 번 더 인코딩될 수 있어 두 번까지 풀어 본다.
+    let path = pathPart;
+    for (let k = 0; k < 2; k++) {
+      try {
+        const next = decodeURIComponent(path);
+        if (next === path) break;
+        path = next;
+      } catch (e) { break; }
+    }
+    return { path: path, params: params };
+  }
+
+  function setCategory(cat) {
+    state.category = CATEGORIES.includes(cat) ? cat : ALL;
+    state.page = 1;
+    state.q = '';
+    const si = $('#search-input');
+    if (si) si.value = '';
+    buildTabs();
+    if (state.view !== 'list') showView('list');
+    loadPosts();
+  }
+
   async function route() {
     if (!state.member) return;
-    const hash = decodeURIComponent(location.hash || '');
-    const m = hash.match(/^#\/p\/(\d+)(\/edit)?$/);
-    if (m) {
-      const id = Number(m[1]);
-      if (state.view === 'detail' && state.postId === id && !m[2] && state.post) return;
-      await loadDetail(id, !!m[2]);
+    const { path, params } = parseHash();
+
+    const pm = path.match(/^\/p\/(\d+)(\/edit)?$/);
+    if (pm) {
+      const id = Number(pm[1]);
+      if (state.view === 'detail' && state.postId === id && !pm[2] && state.post) return;
+      await loadDetail(id, !!pm[2]);
       return;
     }
-    if (hash === '#/write') {
-      if (state.view !== 'write') openWriteForm(null);
+
+    if (path === '/write') {
+      const hasParams = ['author', 'category', 'title', 'pin'].some((k) => params.has(k));
+      if (state.view !== 'write' || hasParams) openWriteForm(null, params);
       return;
     }
+
+    const cm = path.match(/^\/c\/(.+)$/);
+    if (cm) {
+      const cat = CATEGORIES.includes(cm[1]) ? cm[1] : ALL;
+      const already = state.view === 'list' && state.category === cat && !state.q && state.page === 1;
+      if (already && state.loaded && !state.dirty) return;
+      setCategory(cat);
+      return;
+    }
+
     if (state.view !== 'list') showView('list');
     if (state.dirty || !state.loaded) await loadPosts();
   }
@@ -585,15 +872,11 @@
       const btn = e.target.closest('.tab');
       if (!btn) return;
       const cat = btn.dataset.cat;
-      if (cat === state.category) return;
-      state.category = cat;
-      state.page = 1;
-      state.q = '';
-      $('#search-input').value = '';
-      buildTabs();
-      if (state.view !== 'list') { location.hash = '#/list'; }
-      showView('list');
-      loadPosts();
+      if (cat === state.category && state.view === 'list') return;
+      // 말머리도 주소로 남긴다 → #/c/업무 로 바로 열 수 있음
+      const before = location.hash;
+      location.hash = cat === ALL ? '#/list' : '#/c/' + encodeURIComponent(cat);
+      if (location.hash === before) setCategory(cat);
     });
 
     $('#search-form').addEventListener('submit', (e) => {
@@ -682,6 +965,13 @@
     });
 
     $('#comment-list').addEventListener('click', async (e) => {
+      const editBtn = e.target.closest('[data-edit]');
+      if (editBtn) { openCommentEdit(editBtn.dataset.edit); return; }
+      const cancelBtn = e.target.closest('[data-edit-cancel]');
+      if (cancelBtn) { closeCommentEdit(cancelBtn.dataset.editCancel); return; }
+      const saveBtn = e.target.closest('[data-edit-save]');
+      if (saveBtn) { await saveCommentEdit(saveBtn.dataset.editSave, saveBtn); return; }
+
       const btn = e.target.closest('[data-del]');
       if (!btn) return;
       if (!confirm('이 댓글을 삭제할까요?')) return;
@@ -692,6 +982,22 @@
       state.dirty = true;
       toast('댓글을 삭제했습니다.');
     });
+
+    $('#comment-list').addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && e.target.closest('[data-edit-input]')) {
+        closeCommentEdit(e.target.dataset.editInput);
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && e.target.closest('[data-edit-input]')) {
+        e.preventDefault();
+        const id = e.target.dataset.editInput;
+        const btn = $(`[data-edit-save="${id}"]`);
+        saveCommentEdit(id, btn);
+      }
+    });
+
+    $('#btn-copy-md').addEventListener('click', copyPostMd);
+    $('#btn-copy-recent').addEventListener('click', copyRecent);
 
     window.addEventListener('hashchange', route);
   }

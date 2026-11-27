@@ -6,7 +6,7 @@
 <title>예스AI 공용 게시판</title>
 <meta name="robots" content="noindex, nofollow">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%232563eb'/%3E%3Ctext x='32' y='44' font-size='34' font-family='sans-serif' font-weight='700' fill='white' text-anchor='middle'%3EY%3C/text%3E%3C/svg%3E">
-<link rel="stylesheet" href="style.css?v=20261126">
+<link rel="stylesheet" href="style.css?v=20261127">
 </head>
 <body>
 
@@ -111,6 +111,7 @@
             <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" d="M10.5 4a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13Zm5 11.5L20 20"/></svg>
           </button>
         </form>
+        <button type="button" class="btn btn-ghost btn-sm btn-copy-recent" id="btn-copy-recent" title="고정 글 + 최근 글의 본문·댓글을 마크다운으로 복사">최근 글 복사</button>
         <button type="button" class="btn btn-primary btn-write" id="btn-write">글쓰기</button>
       </div>
     </div>
@@ -160,6 +161,7 @@
           <div class="post-foot-left">
             <button type="button" class="btn btn-ghost btn-sm" id="btn-list">목록</button>
             <button type="button" class="btn btn-ghost btn-sm" id="btn-copy-link">링크 복사</button>
+            <button type="button" class="btn btn-ghost btn-sm" id="btn-copy-md" title="글·댓글 전체를 마크다운으로 복사 (로그인 못 하는 AI에 붙여넣기용)">내용 복사</button>
           </div>
           <div class="post-foot-right">
             <button type="button" class="btn btn-ghost btn-sm" id="btn-edit">수정</button>
@@ -231,6 +233,6 @@
 <div class="toast" id="toast" hidden></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="app.js?v=20261126"></script>
+<script src="app.js?v=20261127"></script>
 </body>
 </html>
