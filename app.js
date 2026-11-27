@@ -11,7 +11,8 @@
   const PAGE_SIZE = 15;
   const ALL = '전체';
 
-  /* 대시보드(#/) 설정 — DB 변경 없이 제목 태그·`완료:` 댓글만으로 계산한다. */
+  /* 대시보드(#/) 설정 — DB 변경 없이 제목 태그·`완료:` 댓글만으로 계산한다.
+     2026-11-27 Claude 보완: 개발·앱 칸 앱별 최신 배포, ③과 중복 제외, 빈 칸 한 줄 접기, 모바일 영역 칸 가로 넘김. */
   const TODO_TAGS = ['[결정필요]', '[긴급]', '[오류]', '[일정]'];
   const TODO_RANK = { '[결정필요]': 0, '[긴급]': 1, '[오류]': 1, '[일정]': 2 };
   const RULE_POST_ID = 6;                       // 게시판 이용 규칙 글
@@ -752,24 +753,53 @@
       moreWrap.hidden = true;
     }
 
-    /* ② 영역별 칸 */
-    $('#dash-area-grid').innerHTML = AREA_DEFS.map((a) => {
-      const list = posts.filter((p) => p.category === a.key);
+    /* ② 영역별 칸
+       - 확정 기준 보관함(③)에 들어가는 글(6번 규칙 글, [확정 규칙], [공지])은 영역 칸에서 빼서 중복 표시하지 않는다.
+       - 개발·앱 칸은 [배포 공유]·[배포] 글을 앱별(태그 뒤 첫 단어) 최신 1건씩 최대 3개 보여 준다. 배포 글이 없으면 최신 글 1건.
+       - 글이 없는 칸은 카드 대신 아래 한 줄로 접는다. */
+    const isRulePost = (p) => p.id === RULE_POST_ID || RULE_TAGS.some((t) => String(p.title).includes(t));
+    const areaRows = AREA_DEFS.map((a) => {
+      const all = posts.filter((p) => p.category === a.key);
+      return { a, all, list: all.filter((p) => !isRulePost(p)) };
+    });
+    const filledAreas = areaRows.filter((r) => r.list.length);
+    const emptyAreas = areaRows.filter((r) => !r.list.length);
+    const areaItem = (p) => {
+      const cc = (byPost.get(p.id) || []).length;
+      return `<li><a class="area-item" href="#/p/${p.id}">
+          <span class="area-title">${esc(dashTitle(p))}</span>
+          <span class="area-meta">${fmtShort(p.created_at)}${cc ? ` · 댓글 ${cc}` : ''}</span>
+        </a></li>`;
+    };
+    const DEPLOY_TAG_RE = /^\s*\[배포( 공유)?\]/;
+    const grid = $('#dash-area-grid');
+    grid.style.setProperty('--area-cols', String(Math.max(1, filledAreas.length)));
+    grid.innerHTML = filledAreas.map(({ a, all, list }) => {
       const extra = AREA_EXTRA_LINK[a.key];
       const head = `<header class="area-head">
           <h3>${esc(a.label)}</h3>
-          <span class="area-count">${list.length}</span>
+          <span class="area-count">${all.length}</span>
           <span class="area-links">
             ${extra ? `<a href="${esc(extra.href)}" target="_blank" rel="noopener noreferrer">${esc(extra.label)}</a>` : ''}
             <a href="#/c/${encodeURIComponent(a.key)}">전체</a>
           </span>
         </header>`;
 
-      if (!list.length) {
-        return `<section class="area-card ${a.cls}">${head}<p class="area-empty">글이 없습니다.</p></section>`;
-      }
-
       if (a.compact) {
+        const seen = new Set();
+        const deploys = [];
+        list.filter((p) => DEPLOY_TAG_RE.test(String(p.title))).forEach((p) => {
+          const app = stripTag(p.title).split(/\s+/)[0] || '';
+          if (seen.has(app) || deploys.length >= 3) return;
+          seen.add(app);
+          deploys.push(p);
+        });
+        if (deploys.length) {
+          return `<section class="area-card ${a.cls} area-compact">${head}
+          <p class="area-sub">운영 버전 · 앱별 최신 배포</p>
+          <ul class="area-list">${deploys.map(areaItem).join('')}</ul>
+        </section>`;
+        }
         const p = list[0];
         const cc = (byPost.get(p.id) || []).length;
         return `<section class="area-card ${a.cls} area-compact">${head}
@@ -780,15 +810,16 @@
         </section>`;
       }
 
-      const items = list.slice(0, 3).map((p) => {
-        const cc = (byPost.get(p.id) || []).length;
-        return `<li><a class="area-item" href="#/p/${p.id}">
-          <span class="area-title">${esc(dashTitle(p))}</span>
-          <span class="area-meta">${fmtShort(p.created_at)}${cc ? ` · 댓글 ${cc}` : ''}</span>
-        </a></li>`;
-      }).join('');
-      return `<section class="area-card ${a.cls}">${head}<ul class="area-list">${items}</ul></section>`;
+      return `<section class="area-card ${a.cls}">${head}<ul class="area-list">${list.slice(0, 3).map(areaItem).join('')}</ul></section>`;
     }).join('');
+
+    const emptyEl = $('#dash-area-empty');
+    if (emptyEl) {
+      emptyEl.hidden = emptyAreas.length === 0;
+      emptyEl.innerHTML = emptyAreas.length
+        ? '새 글 없음 · ' + emptyAreas.map(({ a, all }) => `<a href="#/c/${encodeURIComponent(a.key)}">${esc(a.label)}</a>${all.length ? ` <span class="area-empty-n">(기준 글 ${all.length})</span>` : ''}`).join(' · ')
+        : '';
+    }
 
     /* ③ 확정 기준 보관함 — 6번 규칙 글 + [확정 규칙] · [공지] */
     const rules = posts.filter((p) => p.id === RULE_POST_ID || RULE_TAGS.some((t) => String(p.title).includes(t)));
