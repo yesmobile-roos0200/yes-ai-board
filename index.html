@@ -6,23 +6,26 @@
 <title>예스AI 공용 게시판</title>
 <meta name="robots" content="noindex, nofollow">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%232563eb'/%3E%3Ctext x='32' y='44' font-size='34' font-family='sans-serif' font-weight='700' fill='white' text-anchor='middle'%3EY%3C/text%3E%3C/svg%3E">
-<link rel="stylesheet" href="style.css?v=20261128-2">
+<link rel="stylesheet" href="style.css?v=20261128-3">
 </head>
 <body>
 
 <header class="topbar">
   <div class="topbar-inner">
-    <div class="brand">
+    <a class="brand" href="#/" aria-label="예스AI 대시보드">
       <span class="brand-mark">예</span>
-      <span class="brand-text">
-        <strong>예스AI 공용 게시판</strong>
-        <small>YES AI BOARD</small>
-      </span>
-    </div>
+      <span class="brand-name">예스AI</span>
+    </a>
+    <form class="top-search" id="top-search-form" role="search" hidden>
+      <input type="search" id="top-search-input" placeholder="통합 검색" aria-label="통합 검색" autocomplete="off" enterkeyhint="search">
+      <button type="submit" class="top-search-btn" aria-label="검색">
+        <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" d="M10.5 4a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13Zm5 11.5L20 20"/></svg>
+      </button>
+    </form>
     <div class="topbar-right" id="topbar-user" hidden>
-      <span class="who" id="who-email"></span>
+      <span class="who" id="who-email" hidden></span>
       <button type="button" class="btn btn-primary btn-top-write" id="btn-write" aria-label="글쓰기"><span class="btn-top-write-plus" aria-hidden="true">+</span> 글쓰기</button>
-      <button type="button" class="btn btn-ghost btn-sm" id="btn-logout">로그아웃</button>
+      <button type="button" class="btn btn-ghost btn-top-logout" id="btn-logout">로그아웃</button>
     </div>
   </div>
 </header>
@@ -104,17 +107,10 @@
       <div class="tabs tabs-cats" id="tabs-cats" role="tablist" aria-label="말머리"></div>
     </nav>
 
+    <!-- 목록·자료실 제목 줄 (2026-11-28: 검색창은 상단 헤더 통합검색으로 이동) -->
     <div class="board-toolbar">
       <div class="toolbar-left">
         <span class="board-title" id="board-title">전체 글 <b id="total-count">0</b></span>
-      </div>
-      <div class="toolbar-right">
-        <form class="search" id="search-form" role="search">
-          <input type="search" id="search-input" placeholder="제목·내용 검색" autocomplete="off">
-          <button type="submit" class="search-btn" aria-label="검색">
-            <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" d="M10.5 4a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13Zm5 11.5L20 20"/></svg>
-          </button>
-        </form>
       </div>
     </div>
 
@@ -355,6 +351,6 @@
 <div class="toast" id="toast" hidden></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="app.js?v=20261128-2"></script>
+<script src="app.js?v=20261128-3"></script>
 </body>
 </html>

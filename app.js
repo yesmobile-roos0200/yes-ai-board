@@ -420,6 +420,13 @@
     toastTimer = setTimeout(() => { el.hidden = true; }, 2600);
   }
 
+  function syncTopSearch() {
+    const el = $('#top-search-input');
+    if (!el) return;
+    const val = state.view === 'list' ? (state.q || '') : '';
+    if (el.value !== val) el.value = val;
+  }
+
   function showScreen(id) {
     ['#screen-login', '#screen-setup', '#screen-denied', '#screen-board'].forEach((s) => {
       $(s).hidden = s !== id;
@@ -427,6 +434,9 @@
     $('#topbar-user').hidden = !state.session;
     const writeBtn = $('#btn-write');
     if (writeBtn) writeBtn.hidden = id !== '#screen-board';
+    const searchForm = $('#top-search-form');
+    if (searchForm) searchForm.hidden = id !== '#screen-board';
+    syncTopSearch();
   }
 
   function showView(v) {
@@ -437,17 +447,15 @@
     $('#view-detail').hidden = v !== 'detail';
     $('#view-write').hidden = v !== 'write';
     const bar = $('.board-toolbar');
-    if (bar) bar.hidden = !(v === 'list' || v === 'dashboard' || v === 'archive');
-    $('#search-form').hidden = v !== 'list';
+    if (bar) bar.hidden = !(v === 'list' || v === 'archive');
     $('#tabs').hidden = v === 'write';
-    if (v === 'dashboard') {
-      $('#board-title').innerHTML = `대시보드 <span class="muted">${esc(fmtDay(new Date()))} 기준</span>`;
-    } else if (v === 'archive') {
+    if (v === 'archive') {
       $('#board-title').innerHTML = '📚 결산·자료실 <span class="muted">쌓아 두고 다시 보는 자료</span>';
     } else if (v === 'list' && state.loaded) {
       renderBoardTitle();
     }
     buildTabs();
+    syncTopSearch();
     window.scrollTo(0, 0);
   }
 
@@ -1367,14 +1375,29 @@
     return { path: path, params: params };
   }
 
+  /* 상단 통합검색 — 어느 화면에서든 제목·내용으로 전체 글 검색 (#/list?q=) */
+  function runSearch(raw) {
+    const term = sanitizeTerm(raw);
+    const target = term ? `#/list?q=${encodeURIComponent(term)}` : '#/list';
+    state.category = ALL;
+    state.q = term;
+    state.page = 1;
+    buildTabs();
+    if (location.hash === target) {
+      showView('list');
+      loadPosts();
+      return;
+    }
+    location.hash = target;
+  }
+
   function setCategory(cat) {
     state.category = CATEGORIES.includes(cat) ? cat : ALL;
     state.page = 1;
     state.q = '';
-    const si = $('#search-input');
-    if (si) si.value = '';
     buildTabs();
     if (state.view !== 'list') showView('list');
+    syncTopSearch();
     loadPosts();
   }
 
@@ -1411,6 +1434,20 @@
       return;
     }
 
+    /* #/list?q=검색어 = 상단 통합검색 결과 (제목·내용) */
+    if (path === '/list' || path === '/list/') {
+      const q = sanitizeTerm(params.get('q') || '');
+      const same = state.view === 'list' && state.category === ALL && state.q === q && state.page === 1;
+      if (same && state.loaded && !state.dirty) return;
+      state.category = ALL;
+      state.q = q;
+      state.page = 1;
+      buildTabs();
+      showView('list');
+      await loadPosts();
+      return;
+    }
+
     /* #/ (기본) = 대시보드, #/list = 시간순 전체 글 */
     if (path === '' || path === '/' || path === '/dashboard') {
       await loadDashboard();
@@ -1421,8 +1458,6 @@
       state.category = ALL;
       state.q = '';
       state.page = 1;
-      const si = $('#search-input');
-      if (si) si.value = '';
     }
     if (state.view !== 'list') showView('list');
     if (state.dirty || !state.loaded) await loadPosts();
@@ -1505,7 +1540,7 @@
         return;
       }
       if (nav === 'all') {
-        if (state.view === 'list' && state.category === ALL) return;
+        if (state.view === 'list' && state.category === ALL && !state.q) return;
         location.hash = '#/list';
         if (location.hash === before) setCategory(ALL);
         return;
@@ -1534,20 +1569,14 @@
 
     $('#dash-refresh').addEventListener('click', () => { loadDashboard(true); });
 
-    $('#search-form').addEventListener('submit', (e) => {
+    $('#top-search-form').addEventListener('submit', (e) => {
       e.preventDefault();
-      state.q = $('#search-input').value;
-      state.page = 1;
-      showView('list');
-      loadPosts();
+      runSearch($('#top-search-input').value);
     });
 
-    $('#search-input').addEventListener('search', () => {
-      if ($('#search-input').value.trim() === '' && state.q) {
-        state.q = '';
-        state.page = 1;
-        if (state.view === 'list') loadPosts();
-      }
+    $('#top-search-input').addEventListener('search', () => {
+      const val = $('#top-search-input').value;
+      if (val.trim() === '' && state.q) runSearch('');
     });
 
     $('#pager').addEventListener('click', (e) => {
