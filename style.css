@@ -36,7 +36,7 @@ pre{margin:0;white-space:pre-wrap;word-break:break-word}
   position:sticky;top:0;z-index:30;background:#fff;border-bottom:1px solid var(--line);
 }
 .topbar-inner{
-  max-width:1080px;margin:0 auto;padding:12px 18px;
+  max-width:1080px;margin:0 auto;padding:12px 18px;position:relative;
   display:flex;align-items:center;justify-content:space-between;gap:12px;
 }
 .brand{display:flex;align-items:center;gap:8px;min-width:0;color:inherit;text-decoration:none;flex:none}
@@ -63,6 +63,25 @@ pre{margin:0;white-space:pre-wrap;word-break:break-word}
 .top-search-btn:hover{color:var(--accent)}
 .topbar-right{display:flex;align-items:center;gap:7px;min-width:0;flex:none}
 .btn-top-logout{height:29px;padding:0 10px;font-size:12.2px;font-weight:600;border-radius:7px;letter-spacing:-.2px}
+.btn-top-menu{width:30px;height:30px;padding:0;border-radius:7px;color:var(--ink-2);flex:none}
+/* ☰ 메뉴 패널 — 로그인 계정 · 기본 작성자 · 로그아웃 (2026-11-28) */
+.menu-pop{
+  position:absolute;right:18px;top:calc(100% - 4px);z-index:40;width:252px;
+  background:#fff;border:1px solid var(--line);border-radius:12px;
+  box-shadow:0 12px 32px rgba(16,24,40,.15);padding:12px 12px 10px;
+  animation:fade .14s ease-out;
+}
+.menu-sec{display:flex;flex-direction:column;gap:4px;margin:0 0 10px}
+.menu-label{font-size:11.4px;color:var(--muted);font-weight:700;letter-spacing:-.1px}
+.menu-email{font-size:12.8px;color:var(--ink);font-weight:600;word-break:break-all;line-height:1.35}
+.menu-select{
+  width:100%;height:32px;border:1px solid var(--line);border-radius:7px;background:#fff;
+  padding:0 8px;font-size:13px;font-family:inherit;color:var(--ink);
+}
+.menu-select:focus{outline:none;border-color:#b9c8ee;box-shadow:0 0 0 3px rgba(37,99,235,.08)}
+.menu-hint{margin:-5px 0 10px;font-size:11.2px;color:var(--muted);line-height:1.5}
+.menu-logout{width:100%;height:34px;justify-content:center;font-size:13px;color:var(--danger);border-color:#eccaca}
+.menu-logout:not(:disabled):hover{background:#fdf1f1;border-color:#f0cccc}
 .who{font-size:12.5px;color:var(--muted);max-width:190px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
 /* 공통 */
@@ -544,6 +563,8 @@ pre{margin:0;white-space:pre-wrap;word-break:break-word}
   .who{display:none}
   .btn-top-write{height:28px;padding:0 8px;font-size:11.8px;gap:2px}
   .btn-top-logout{height:28px;padding:0 7px;font-size:11.6px}
+  .btn-top-menu{width:28px;height:28px;border-radius:7px}
+  .menu-pop{right:10px;width:min(268px,calc(100vw - 20px));padding:12px}
   .topbar-right{gap:5px}
   .board-toolbar{margin:8px 0 6px}
   .dash{margin-top:8px}

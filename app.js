@@ -15,6 +15,19 @@
   const AUTHOR_RENAMES = { '이지실버': '종훈비서', '예스통신': '예스매장', '예스총괄': '예스물류' };
   const canonicalAuthor = (name) => AUTHOR_RENAMES[name] || name;
   const isKnownAuthor = (name) => AUTHORS.includes(name) || !!AUTHOR_RENAMES[name];
+  /* 2026-11-28 종훈 님 요청: ☰ 메뉴에서 정한 '기본 작성자'. 정해 두면 글·댓글 쓸 때 항상 그 이름이 먼저 선택된다.
+     정하지 않으면 예전처럼 마지막에 쓴 이름(localStorage yes_ai_board_author)을 쓴다. */
+  const DEFAULT_AUTHOR_KEY = 'yes_ai_board_default_author';
+  function defaultAuthor() {
+    const a = canonicalAuthor(localStorage.getItem(DEFAULT_AUTHOR_KEY));
+    return AUTHORS.includes(a) ? a : '';
+  }
+  function preferredAuthor() {
+    const d = defaultAuthor();
+    if (d) return d;
+    const saved = canonicalAuthor(localStorage.getItem('yes_ai_board_author'));
+    return AUTHORS.includes(saved) ? saved : '';
+  }
   const PAGE_SIZE = 15;
   const ALL = '전체';
 
@@ -436,6 +449,7 @@
     if (writeBtn) writeBtn.hidden = id !== '#screen-board';
     const searchForm = $('#top-search-form');
     if (searchForm) searchForm.hidden = id !== '#screen-board';
+    if (!state.session) setMenu(false);
     syncTopSearch();
   }
 
@@ -523,6 +537,7 @@
     }
     state.email = session.user && session.user.email ? session.user.email : '';
     $('#who-email').textContent = state.email;
+    syncMenu();
     const ok = await checkMembership();
     if (!ok) return;
     showScreen('#screen-board');
@@ -575,11 +590,32 @@
     $('#write-author').innerHTML = authorOpts;
     $('#comment-author').innerHTML = authorOpts;
     $('#write-owner').innerHTML = '<option value="">없음</option>' + authorOpts;
-    const saved = canonicalAuthor(localStorage.getItem('yes_ai_board_author'));
+    const saved = preferredAuthor();
     if (saved && AUTHORS.includes(saved)) {
       $('#write-author').value = saved;
       $('#comment-author').value = saved;
     }
+  }
+
+  /* ☰ 메뉴 — 로그인 계정 · 기본 작성자 · 로그아웃 (2026-11-28) */
+  function setMenu(open) {
+    const panel = $('#top-menu');
+    const btn = $('#btn-menu');
+    if (!panel || !btn) return;
+    panel.hidden = !open;
+    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+  }
+
+  function syncMenu() {
+    const email = $('#menu-email');
+    if (email) email.textContent = state.email || '(계정 없음)';
+    const sel = $('#default-author');
+    if (!sel) return;
+    if (!sel.options.length) {
+      sel.innerHTML = '<option value="">설정 안 함 (최근 사용 이름)</option>' +
+        AUTHORS.map((a) => `<option value="${esc(a)}">${esc(a)}</option>`).join('');
+    }
+    sel.value = defaultAuthor();
   }
 
   function sanitizeTerm(t) {
@@ -1130,7 +1166,7 @@
     $('#btn-edit').hidden = !mine;
     $('#btn-delete').hidden = !mine;
     $('#comment-content').value = '';
-    const savedAuthor = canonicalAuthor(localStorage.getItem('yes_ai_board_author'));
+    const savedAuthor = preferredAuthor();
     $('#comment-author').value = AUTHORS.includes(savedAuthor) ? savedAuthor : AUTHORS[0];
 
     await loadComments(id);
@@ -1242,7 +1278,7 @@
     $('#write-error').hidden = true;
     $('#write-category').value = isEdit ? post.category : (state.category !== ALL ? state.category : CATEGORIES[0]);
     if (isEdit) { ensureAuthorOption(post.author); ensureAuthorOption(post.owner); }
-    const savedAuthor = canonicalAuthor(localStorage.getItem('yes_ai_board_author'));
+    const savedAuthor = preferredAuthor();
     $('#write-author').value = isEdit
       ? post.author
       : (AUTHORS.includes(savedAuthor) ? savedAuthor : AUTHORS[0]);
@@ -1501,6 +1537,32 @@
     });
 
     $('#btn-logout').addEventListener('click', doLogout);
+    $('#btn-menu').addEventListener('click', (e) => {
+      e.stopPropagation();
+      syncMenu();
+      setMenu($('#top-menu').hidden);
+    });
+    document.addEventListener('click', (e) => {
+      const panel = $('#top-menu');
+      if (!panel || panel.hidden) return;
+      if (panel.contains(e.target) || (e.target.closest && e.target.closest('#btn-menu'))) return;
+      setMenu(false);
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') setMenu(false);
+    });
+    $('#default-author').addEventListener('change', (e) => {
+      const v = canonicalAuthor(e.target.value);
+      if (v && AUTHORS.includes(v)) {
+        localStorage.setItem(DEFAULT_AUTHOR_KEY, v);
+        $('#write-author').value = v;
+        $('#comment-author').value = v;
+        toast(`기본 작성자를 '${v}'(으)로 정했습니다.`);
+      } else {
+        localStorage.removeItem(DEFAULT_AUTHOR_KEY);
+        toast('기본 작성자를 정하지 않았습니다. 최근에 쓴 이름을 씁니다.');
+      }
+    });
     $('#btn-setup-logout').addEventListener('click', doLogout);
     $('#btn-denied-logout').addEventListener('click', doLogout);
 

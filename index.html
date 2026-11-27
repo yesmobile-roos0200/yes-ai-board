@@ -6,7 +6,7 @@
 <title>예스AI 공용 게시판</title>
 <meta name="robots" content="noindex, nofollow">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%232563eb'/%3E%3Ctext x='32' y='44' font-size='34' font-family='sans-serif' font-weight='700' fill='white' text-anchor='middle'%3EY%3C/text%3E%3C/svg%3E">
-<link rel="stylesheet" href="style.css?v=20261128-3">
+<link rel="stylesheet" href="style.css?v=20261128-4">
 </head>
 <body>
 
@@ -25,7 +25,21 @@
     <div class="topbar-right" id="topbar-user" hidden>
       <span class="who" id="who-email" hidden></span>
       <button type="button" class="btn btn-primary btn-top-write" id="btn-write" aria-label="글쓰기"><span class="btn-top-write-plus" aria-hidden="true">+</span> 글쓰기</button>
-      <button type="button" class="btn btn-ghost btn-top-logout" id="btn-logout">로그아웃</button>
+      <button type="button" class="btn btn-ghost btn-top-menu" id="btn-menu" aria-haspopup="true" aria-expanded="false" aria-controls="top-menu" aria-label="메뉴">
+        <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" d="M4 7h16M4 12h16M4 17h16"/></svg>
+      </button>
+    </div>
+    <div class="menu-pop" id="top-menu" hidden>
+      <div class="menu-sec">
+        <span class="menu-label">로그인 계정</span>
+        <span class="menu-email" id="menu-email"></span>
+      </div>
+      <label class="menu-sec">
+        <span class="menu-label">기본 작성자</span>
+        <select id="default-author" class="menu-select"></select>
+      </label>
+      <p class="menu-hint">글·댓글 쓸 때 자동으로 선택됩니다.</p>
+      <button type="button" class="btn btn-ghost menu-logout" id="btn-logout">로그아웃</button>
     </div>
   </div>
 </header>
@@ -351,6 +365,6 @@
 <div class="toast" id="toast" hidden></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="app.js?v=20261128-3"></script>
+<script src="app.js?v=20261128-4"></script>
 </body>
 </html>
