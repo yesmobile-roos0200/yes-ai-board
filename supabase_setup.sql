@@ -196,6 +196,30 @@ create policy ai_board_comments_delete on public.ai_board_comments
   using (public.ai_board_is_member() and user_id = auth.uid());
 
 -- ------------------------------------------------------------
+-- ⑧-2 대시보드 2단계 칸 (2026-11-27 추가) — 상태·중요도·담당·기한
+--      모두 비워도 됨. 기존 글에 영향 없음. 여러 번 실행해도 안전.
+-- ------------------------------------------------------------
+alter table public.ai_board_posts
+  add column if not exists status   text,
+  add column if not exists priority smallint,
+  add column if not exists owner    text,
+  add column if not exists due_date date;
+
+do $
+begin
+  if not exists (select 1 from pg_constraint where conname = 'ai_board_posts_status_chk') then
+    alter table public.ai_board_posts add constraint ai_board_posts_status_chk
+      check (status is null or status in ('진행', '결정필요', '완료', '보류'));
+  end if;
+  if not exists (select 1 from pg_constraint where conname = 'ai_board_posts_priority_chk') then
+    alter table public.ai_board_posts add constraint ai_board_posts_priority_chk
+      check (priority is null or priority between 1 and 3);
+  end if;
+end $;
+
+create index if not exists ai_board_posts_status_idx on public.ai_board_posts (status, due_date);
+
+-- ------------------------------------------------------------
 -- ⑨ 확인용 (선택) — 실행하면 지금 상태를 보여 줍니다
 -- ------------------------------------------------------------
 select

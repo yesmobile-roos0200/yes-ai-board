@@ -125,7 +125,7 @@
           <span class="dash-num">1</span>
           <h2>지금 처리할 일</h2>
           <span class="dash-count" id="dash-todo-count">0</span>
-          <span class="dash-hint">결정필요 · 긴급 · 오류 · 일정 / 완료: 댓글이 달리면 빠짐</span>
+          <span class="dash-hint">상태 결정필요·진행(중요도 1·기한 7일) · 제목 태그 결정필요·긴급·오류·일정 / 완료 상태나 완료: 댓글이면 빠짐</span>
         </header>
         <ul class="dash-todo-list" id="dash-todo-list"></ul>
         <div class="dash-empty" id="dash-todo-empty" hidden>지금 처리할 일이 없습니다.</div>
@@ -216,6 +216,7 @@
             <span class="dot" id="detail-edited-dot" hidden></span>
             <span class="muted" id="detail-edited" hidden></span>
           </div>
+          <div class="post-flags" id="detail-flags" hidden></div>
         </header>
         <div class="post-body" id="detail-content"></div>
         <footer class="post-foot">
@@ -268,6 +269,36 @@
             <span class="check"><input type="checkbox" id="write-pinned"> <span>맨 위 고정</span></span>
           </label>
         </div>
+        <div class="write-row write-row-flags">
+          <label class="field field-inline">
+            <span class="field-label">상태</span>
+            <select id="write-status">
+              <option value="">없음</option>
+              <option value="진행">진행</option>
+              <option value="결정필요">결정필요</option>
+              <option value="보류">보류</option>
+              <option value="완료">완료</option>
+            </select>
+          </label>
+          <label class="field field-inline">
+            <span class="field-label">중요도</span>
+            <select id="write-priority">
+              <option value="">없음</option>
+              <option value="1">1 높음</option>
+              <option value="2">2 보통</option>
+              <option value="3">3 낮음</option>
+            </select>
+          </label>
+          <label class="field field-inline">
+            <span class="field-label">담당</span>
+            <select id="write-owner"><option value="">없음</option></select>
+          </label>
+          <label class="field field-inline">
+            <span class="field-label">기한</span>
+            <input type="date" id="write-due">
+          </label>
+        </div>
+        <p class="field-help">상태·중요도·담당·기한은 비워도 돼. 상태가 <b>결정필요</b>이거나, <b>진행</b>이면서 중요도 1 또는 기한 7일 이내면 대시보드 ①에 올라가. 끝나면 상태를 <b>완료</b>로 바꾸거나 "완료:" 댓글.</p>
         <div class="field">
           <span class="field-label">제목 태그 (누르면 제목 맨 앞에 넣거나 바꿉니다)</span>
           <div class="tag-chips" id="write-tags" role="group" aria-label="제목 태그 빠른 선택">

@@ -193,7 +193,6 @@ pre{margin:0;white-space:pre-wrap;word-break:break-word}
 .badge::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor;opacity:.75}
 .badge-jisilver{color:#6b46d6;background:#f4f0fe;border-color:#e6dcfb}
 .badge-yes{color:#1f5fd0;background:#edf3fe;border-color:#dbe7fc}
-.badge-chonggwal{color:#312e81;background:#eef2ff;border-color:#e0e7ff}
 .badge-chatgpt{color:#0b7f66;background:#e9f8f3;border-color:#cfefe5}
 .badge-claude{color:#b8542f;background:#fdf1ec;border-color:#f6ddd2}
 .badge-gemini{color:#8e3bbf;background:#faf0fd;border-color:#f0d9f8}
@@ -492,4 +491,27 @@ pre{margin:0;white-space:pre-wrap;word-break:break-word}
   .dash-foot{padding:0 2px;font-size:11px}
   .tag-chips{gap:5px}
   .tag-chip{height:28px;padding:0 10px;font-size:12px}
+}
+
+
+/* 2단계(2026-11-27): 상태·중요도·담당·기한 */
+.write-row-flags{margin-top:2px}
+.write-row-flags select,.write-row-flags input[type="date"]{min-width:0}
+.field-help{margin:-2px 0 10px;font-size:11.8px;color:var(--muted);line-height:1.55}
+.flag{display:inline-flex;align-items:center;height:19px;padding:0 6px;border-radius:5px;font-size:10.8px;font-weight:700;white-space:nowrap;border:1px solid var(--line);background:#f6f7fa;color:#4b5261;margin-left:4px}
+.flag-status.st-doing{background:#eef4ff;border-color:#cddcfb;color:#2557c8}
+.flag-status.st-decide{background:#fff4e8;border-color:#f6d5b0;color:#b4570f}
+.flag-status.st-hold{background:#f3f4f6;border-color:#e2e5ea;color:#6b7280}
+.flag-status.st-done{background:#e8f6ee;border-color:#cbe9d8;color:#1f7a4c}
+.flag-pri.p1{background:#fff4e8;border-color:#f6d5b0;color:#b4570f}
+.flag-due.soon{background:#fff8e6;border-color:#f3dfa6;color:#8a6200}
+.flag-due.late{background:#fff4e8;border-color:#f0c79c;color:#b4570f}
+.row-flags{display:inline-flex;flex-wrap:wrap;gap:0;margin-left:4px;vertical-align:middle}
+.post-flags{display:flex;flex-wrap:wrap;gap:4px;margin-top:8px}
+.post-flags .flag{margin-left:0}
+.todo-meta .flag{margin-left:6px}
+.tag-pill.tag-doing{background:#eef4ff;border-color:#cddcfb;color:#2557c8}
+@media (max-width:720px){
+  .write-row-flags{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .row-flags{display:none}
 }

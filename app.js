@@ -7,12 +7,13 @@
   const SUPABASE_KEY = 'sb_publishable_FLXtDN6cTA-blmsQU78B-Q_YbEYapeO';
 
   const CATEGORIES = ['업무', '고객예약', '개발·앱', '세무·정산', '개인'];
-  const AUTHORS = ['이지실버', '예스통신', '예스총괄', 'ChatGPT', 'Claude', '제미나이', 'Vooy', '종훈'];
+  const AUTHORS = ['이지실버', '예스통신', 'ChatGPT', 'Claude', '제미나이', 'Vooy', '종훈'];
   const PAGE_SIZE = 15;
   const ALL = '전체';
 
   /* 대시보드(#/) 설정 — DB 변경 없이 제목 태그·`완료:` 댓글만으로 계산한다.
-     2026-11-27 Claude 보완: 개발·앱 칸 앱별 최신 배포, ③과 중복 제외, 빈 칸 한 줄 접기, 모바일 영역 칸 가로 넘김. */
+     2026-11-27 Claude 보완: 개발·앱 칸 앱별 최신 배포, ③과 중복 제외, 빈 칸 한 줄 접기, 모바일 영역 칸 가로 넘김.
+     2026-11-27 Claude 2단계: 상태·중요도·담당·기한 칸(DB) 연결. 칸이 비어 있으면 1단계 규칙 그대로. */
   const TODO_TAGS = ['[결정필요]', '[긴급]', '[오류]', '[일정]'];
   const TODO_RANK = { '[결정필요]': 0, '[긴급]': 1, '[오류]': 1, '[일정]': 2 };
   const RULE_POST_ID = 6;                       // 게시판 이용 규칙 글
@@ -26,6 +27,11 @@
   const AREA_EXTRA_LINK = {
     '고객예약': { href: 'https://app.notion.com/p/4182ce9e3d8f816fbc3dd82e7898aefb', label: '고객관리 원본' }
   };
+  /* 2단계(2026-11-27): 상태·중요도·담당·기한 칸. 모두 비워도 되고, 비어 있으면 1단계 규칙(제목 태그 + 완료: 댓글)으로 판정 */
+  const STATUSES = ['진행', '결정필요', '보류', '완료'];
+  const STATUS_CLASS = { '진행': 'st-doing', '결정필요': 'st-decide', '보류': 'st-hold', '완료': 'st-done' };
+  const PRIORITY_LABEL = { 1: '중요도 1', 2: '중요도 2', 3: '중요도 3' };
+  const DUE_SOON_DAYS = 7;
   const TODO_BASE_MOBILE = 6;
   const TODO_BASE_DESKTOP = 10;
 
@@ -42,7 +48,6 @@
   const AUTHOR_CLASS = {
     '이지실버': 'badge-jisilver',
     '예스통신': 'badge-yes',
-    '예스총괄': 'badge-chonggwal',
     'ChatGPT': 'badge-chatgpt',
     'Claude': 'badge-claude',
     '제미나이': 'badge-gemini',
@@ -110,6 +115,37 @@
   function titleTag(title) {
     const m = String(title == null ? '' : title).match(/^\s*(\[[^\]\n]{1,12}\])/);
     return m ? m[1] : '';
+  }
+
+  /* 기한까지 남은 날짜(오늘 0, 지남 음수). 날짜가 없으면 null */
+  function dueDays(due) {
+    if (!due) return null;
+    const m = String(due).match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (!m) return null;
+    const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+    const t = new Date(); t.setHours(0, 0, 0, 0);
+    return Math.round((d - t) / 86400000);
+  }
+
+  function dueLabel(due) {
+    const n = dueDays(due);
+    if (n === null) return '';
+    if (n === 0) return '오늘까지';
+    return n > 0 ? `D-${n}` : `${-n}일 지남`;
+  }
+
+  /* 글의 상태·중요도·담당·기한 칩 (목록·대시보드·본문 공통) */
+  function flagChips(p, opts) {
+    const o = opts || {};
+    const out = [];
+    if (!o.noStatus && p.status) out.push(`<span class="flag flag-status ${STATUS_CLASS[p.status] || ''}">${esc(p.status)}</span>`);
+    if (!o.noPriority && p.priority) out.push(`<span class="flag flag-pri p${Number(p.priority)}">${esc(PRIORITY_LABEL[p.priority] || '')}</span>`);
+    if (!o.noOwner && p.owner) out.push(`<span class="flag flag-owner">담당 ${esc(p.owner)}</span>`);
+    if (p.due_date && p.status !== '완료') {
+      const n = dueDays(p.due_date);
+      out.push(`<span class="flag flag-due${n !== null && n < 0 ? ' late' : (n !== null && n <= DUE_SOON_DAYS ? ' soon' : '')}">${esc(dueLabel(p.due_date))}</span>`);
+    }
+    return out.join('');
   }
 
   function stripTag(title) {
@@ -306,6 +342,12 @@
     const meta = [`작성자 ${p.author}`, fmtFull(p.created_at)];
     if (p.is_pinned) meta.push('📌 고정');
     out.push(meta.join(' · '));
+    const flags = [];
+    if (p.status) flags.push(`상태 ${p.status}`);
+    if (p.priority) flags.push(`중요도 ${p.priority}`);
+    if (p.owner) flags.push(`담당 ${p.owner}`);
+    if (p.due_date) flags.push(`기한 ${String(p.due_date).slice(0, 10)}${p.status !== '완료' ? ` (${dueLabel(p.due_date)})` : ''}`);
+    if (flags.length) out.push(flags.join(' · '));
     out.push(`링크: ${boardUrl()}#/p/${p.id}`);
     out.push('');
     out.push(String(p.content || '').trim() || '(내용 없음)');
@@ -508,6 +550,7 @@
     $('#write-category').innerHTML = catOpts;
     $('#write-author').innerHTML = authorOpts;
     $('#comment-author').innerHTML = authorOpts;
+    $('#write-owner').innerHTML = '<option value="">없음</option>' + authorOpts;
     const saved = localStorage.getItem('yes_ai_board_author');
     if (saved && AUTHORS.includes(saved)) {
       $('#write-author').value = saved;
@@ -526,7 +569,7 @@
     $('#list-empty').hidden = true;
 
     let query = db.from('ai_board_posts')
-      .select('id,category,author,title,is_pinned,created_at,user_id', { count: 'exact' });
+      .select('id,category,author,title,is_pinned,created_at,user_id,status,priority,owner,due_date', { count: 'exact' });
     if (state.category !== ALL) query = query.eq('category', state.category);
     const term = sanitizeTerm(state.q);
     if (term) query = query.or(`title.ilike.*${term}*,content.ilike.*${term}*`);
@@ -570,7 +613,7 @@
         <td class="col-no"><span class="cell-no">${p.is_pinned ? '📌 ' : ''}${p.id}</span></td>
         <td class="col-cat">${catChip(p.category)}</td>
         <td class="col-title">
-          <a class="cell-title" href="#/p/${p.id}">${esc(p.title)}${cmt ? `<span class="cmt">(${cmt})</span>` : ''}</a>
+          <a class="cell-title" href="#/p/${p.id}">${esc(p.title)}${cmt ? `<span class="cmt">(${cmt})</span>` : ''}</a>${(p.status || p.due_date) ? `<span class="row-flags">${flagChips(p, { noPriority: true })}</span>` : ''}
           <span class="m-meta">${p.is_pinned ? '<span class="pinmark">📌</span>' : ''}${catChip(p.category)}${badge(p.author)}<span class="dot"></span><span>${fmtShort(p.created_at)}</span></span>
         </td>
         <td class="col-author">${badge(p.author)}</td>
@@ -653,7 +696,7 @@
     }
 
     const { data, error } = await db.from('ai_board_posts')
-      .select('id,category,author,title,content,is_pinned,created_at')
+      .select('id,category,author,title,content,is_pinned,created_at,status,priority,owner,due_date')
       .order('created_at', { ascending: false })
       .limit(500);
 
@@ -709,15 +752,35 @@
     const posts = d.posts || [];
     const byPost = postCommentsMap();
 
-    /* ① 지금 처리할 일 — 제목 태그가 붙었고 완료: 댓글이 없는 글 */
+    /* ① 지금 처리할 일
+       - 상태 칸이 있으면 상태로 판정: 결정필요는 항상, 진행은 중요도 1이거나 기한 7일 이내(지난 것 포함). 보류·완료는 제외.
+       - 상태 칸이 비어 있으면 1단계 규칙: 제목 태그([결정필요]·[긴급]·[오류]·[일정]) 또는 기한 7일 이내.
+       - 어느 쪽이든 완료: 댓글이 달리면 빠진다. */
     const todo = [];
     posts.forEach((p) => {
-      const tag = titleTag(p.title);
-      if (!TODO_TAGS.includes(tag)) return;
+      if (p.status === '완료' || p.status === '보류') return;
       if (isDonePost(byPost.get(p.id))) return;
-      todo.push({ p, tag });
+      const n = dueDays(p.due_date);
+      const soon = n !== null && n <= DUE_SOON_DAYS;
+      let label = '';
+      let rank = 9;
+      if (p.status === '결정필요') { label = '결정필요'; rank = 0; }
+      else if (p.status === '진행') {
+        if (Number(p.priority) === 1) { label = '진행'; rank = 1; }
+        else if (soon) { label = '진행'; rank = 2; }
+        else return;
+      } else {
+        const tag = titleTag(p.title);
+        if (TODO_TAGS.includes(tag)) { label = tag.slice(1, -1); rank = TODO_RANK[tag]; }
+        else if (soon) { label = '기한'; rank = 2; }
+        else return;
+      }
+      todo.push({ p, label, rank, n });
     });
-    todo.sort((a, b) => (TODO_RANK[a.tag] - TODO_RANK[b.tag]) || (new Date(b.p.created_at) - new Date(a.p.created_at)));
+    todo.sort((a, b) => (a.rank - b.rank)
+      || ((a.n === null ? 99999 : a.n) - (b.n === null ? 99999 : b.n))
+      || ((Number(a.p.priority) || 9) - (Number(b.p.priority) || 9))
+      || (new Date(b.p.created_at) - new Date(a.p.created_at)));
 
     $('#dash-todo-count').textContent = String(todo.length);
     const isMobile = window.matchMedia('(max-width:720px)').matches;
@@ -725,14 +788,14 @@
     const limit = state.todoOpen ? todo.length : Math.min(todo.length, baseLimit);
     const shown = todo.slice(0, limit);
 
-    $('#dash-todo-list').innerHTML = shown.map(({ p, tag }) => {
+    $('#dash-todo-list').innerHTML = shown.map(({ p, label }) => {
       const cc = (byPost.get(p.id) || []).length;
-      const tagCls = tag === '[일정]' ? 'tag-sched' : (tag === '[결정필요]' ? 'tag-decide' : 'tag-urgent');
+      const tagCls = (label === '일정' || label === '기한') ? 'tag-sched' : (label === '결정필요' ? 'tag-decide' : (label === '진행' ? 'tag-doing' : 'tag-urgent'));
       return `<li class="todo-item">
         <a class="todo-link" href="#/p/${p.id}">
-          <span class="tag-pill ${tagCls}">${esc(tag.slice(1, -1))}</span>
+          <span class="tag-pill ${tagCls}">${esc(label)}</span>
           <span class="todo-title">${esc(dashTitle(p))}</span>
-          <span class="todo-meta">${badge(p.author)}<span class="dot"></span><span>${fmtShort(p.created_at)}</span>${cc ? `<span class="dot"></span><span>댓글 ${cc}</span>` : ''}</span>
+          <span class="todo-meta">${badge(p.author)}<span class="dot"></span><span>${fmtShort(p.created_at)}</span>${cc ? `<span class="dot"></span><span>댓글 ${cc}</span>` : ''}${flagChips(p, { noStatus: true, noPriority: p.status === '결정필요' })}</span>
         </a>
       </li>`;
     }).join('');
@@ -769,7 +832,7 @@
       const cc = (byPost.get(p.id) || []).length;
       return `<li><a class="area-item" href="#/p/${p.id}">
           <span class="area-title">${esc(dashTitle(p))}</span>
-          <span class="area-meta">${fmtShort(p.created_at)}${cc ? ` · 댓글 ${cc}` : ''}</span>
+          <span class="area-meta">${fmtShort(p.created_at)}${cc ? ` · 댓글 ${cc}` : ''}${p.status ? ` · ${esc(p.status)}` : ''}</span>
         </a></li>`;
     };
     const DEPLOY_TAG_RE = /^\s*\[배포( 공유)?\]/;
@@ -921,6 +984,9 @@
     $('#detail-pin').hidden = !data.is_pinned;
     $('#detail-author').innerHTML = badge(data.author);
     $('#detail-date').textContent = fmtFull(data.created_at);
+    const flagsHtml = flagChips(data);
+    $('#detail-flags').innerHTML = flagsHtml;
+    $('#detail-flags').hidden = !flagsHtml;
     const edited = data.updated_at && new Date(data.updated_at) - new Date(data.created_at) > 60000;
     $('#detail-edited').hidden = !edited;
     $('#detail-edited-dot').hidden = !edited;
@@ -1046,6 +1112,10 @@
     $('#write-post-title').value = isEdit ? post.title : '';
     $('#write-content').value = isEdit ? post.content : '';
     $('#write-pinned').checked = isEdit ? !!post.is_pinned : false;
+    $('#write-status').value = isEdit && post.status ? post.status : '';
+    $('#write-priority').value = isEdit && post.priority ? String(post.priority) : '';
+    $('#write-owner').value = isEdit && post.owner ? post.owner : '';
+    $('#write-due').value = isEdit && post.due_date ? String(post.due_date).slice(0, 10) : '';
 
     // 딥링크 파라미터 (#/write?author=Vooy&category=업무&title=...&pin=1)
     if (!isEdit && params) {
@@ -1059,6 +1129,14 @@
       const t = params.get('title');
       if (t) $('#write-post-title').value = t.slice(0, 200);
       if (params.get('pin') === '1') $('#write-pinned').checked = true;
+      const st = params.get('status');
+      if (st && STATUSES.includes(st)) $('#write-status').value = st;
+      const pr = params.get('priority');
+      if (pr && ['1', '2', '3'].includes(pr)) $('#write-priority').value = pr;
+      const ow = params.get('owner');
+      if (ow && AUTHORS.includes(ow)) $('#write-owner').value = ow;
+      const du = params.get('due');
+      if (du && /^\d{4}-\d{2}-\d{2}$/.test(du)) $('#write-due').value = du;
     }
 
     state.editing = isEdit;
@@ -1084,7 +1162,17 @@
     const label = btn.textContent;
     btn.textContent = '저장 중…';
 
-    const payload = { category, author, title, content, is_pinned: isPinned };
+    const status = $('#write-status').value;
+    const priority = $('#write-priority').value;
+    const owner = $('#write-owner').value;
+    const dueDate = $('#write-due').value;
+    const payload = {
+      category, author, title, content, is_pinned: isPinned,
+      status: STATUSES.includes(status) ? status : null,
+      priority: ['1', '2', '3'].includes(priority) ? Number(priority) : null,
+      owner: owner && AUTHORS.includes(owner) ? owner : null,
+      due_date: /^\d{4}-\d{2}-\d{2}$/.test(dueDate) ? dueDate : null
+    };
     let res;
     if (state.editing && state.postId) {
       res = await db.from('ai_board_posts')
