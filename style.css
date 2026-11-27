@@ -483,7 +483,7 @@ pre{margin:0;white-space:pre-wrap;word-break:break-word}
   .tabbar{flex-direction:column}
   .tabs-main{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));overflow:visible;border-left:0;margin-left:0;padding-left:0}
   .tabs-main .tab{padding:10px 4px 9px;font-size:13.5px;text-align:center;justify-content:center}
-  .tabs-cats{border-left:0;margin-left:0;padding-left:0}
+  .tabs-cats{border-left:0;margin-left:0;padding-left:0;padding-right:16px}
   .tabs-cats .tab{padding:10px 12px 9px;font-size:13.5px}
   /* 결산·자료실 */
   .arch-head{gap:6px;margin-bottom:8px}

@@ -51,6 +51,8 @@
     { key: 'market', label: '시세·기준', short: '시세', re: /시세|고정\s*기준|공통\s*기준|기준표|확정\s*규칙/ }
   ];
   const ARCHIVE_TITLE_RE = /매입|일련번호|IMEI|시리얼|시세|결산|자료|고정\s*기준|공통\s*기준|기준표|확정\s*규칙/i;
+  /* 공지·업데이트 글은 제목에 결산·자료 낱말이 있어도 자료로 모으지 않는다(안내문이 자료실을 채우는 것 방지) */
+  const ARCHIVE_SKIP_RE = /^\s*\[(업데이트|공지|배포|배포\s*공유)\]/;
 
   const $ = (sel, root = document) => root.querySelector(sel);
   const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
@@ -1029,8 +1031,10 @@
      ① 말머리 `결산·자료` 또는 `세무·정산` ② 제목에 [매입기록]·[결산]·[자료]·[시세]·고정 기준 등이 들어간 글. */
   function isArchivePost(p) {
     if (!p) return false;
+    const title = String(p.title || '');
     if (p.category === '결산·자료' || p.category === '세무·정산') return true;
-    return ARCHIVE_TITLE_RE.test(String(p.title || ''));
+    if (ARCHIVE_SKIP_RE.test(title)) return false;
+    return ARCHIVE_TITLE_RE.test(title);
   }
 
   function archKindsOf(p) {
