@@ -405,6 +405,8 @@
     $('#tabs').hidden = v === 'write';
     if (v === 'dashboard') {
       $('#board-title').innerHTML = `대시보드 <span class="muted">${esc(fmtDay(new Date()))} 기준</span>`;
+    } else if (v === 'list' && state.loaded) {
+      renderBoardTitle();
     }
     buildTabs();
     window.scrollTo(0, 0);
@@ -557,10 +559,7 @@
       return loadPosts();
     }
 
-    const base = state.category === ALL ? '전체 글' : esc(state.category) + ' 글';
-    $('#board-title').innerHTML = term
-      ? `‘${esc(term)}’ 검색 <b>${state.total}</b>건`
-      : `${base} <b id="total-count">${state.total}</b>`;
+    renderBoardTitle(term);
     const counts = await fetchCommentCounts(state.posts.map((p) => p.id));
 
     const rows = state.posts.map((p) => {
@@ -588,8 +587,15 @@
     buildTabs();
   }
 
-  async function fetchCommentCounts(ids) {
-    const map = new Map();
+  function renderBoardTitle(term) {
+    if (!term) term = sanitizeTerm(state.q);
+    const base = state.category === ALL ? '전체 글' : esc(state.category) + ' 글';
+    $('#board-title').innerHTML = term
+      ? `‘${esc(term)}’ 검색 <b>${state.total}</b>건`
+      : `${base} <b>${state.total}</b>`;
+  }
+
+  async function fetchCommentCounts(ids) {    const map = new Map();
     if (!ids || !ids.length) return map;
     const { data, error } = await db.from('ai_board_comments').select('post_id').in('post_id', ids);
     if (error) {
