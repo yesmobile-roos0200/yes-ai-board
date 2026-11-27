@@ -6,7 +6,9 @@
   const SUPABASE_URL = 'https://mveldownctofvhwcgnzz.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_FLXtDN6cTA-blmsQU78B-Q_YbEYapeO';
 
-  const CATEGORIES = ['업무', '고객예약', '개발·앱', '세무·정산', '개인'];
+  /* 2026-11-27 종훈 님 요청: 누적성 자료(일일 마감·월간 결산·매입 일련번호·시세표)를 모으는
+     `결산·자료` 말머리를 추가하고 상단 `📚 결산·자료실` 탭(#/archive)을 따로 뒀다. */
+  const CATEGORIES = ['업무', '고객예약', '개발·앱', '세무·정산', '개인', '결산·자료'];
   /* 2026-11-27 종훈 님 확정: 피클 3명 이름 변경 — 이지실버→종훈비서 · 예스통신→예스매장 · 예스총괄→예스물류.
      새 드롭다운 선택지는 새 이름만 두고, 옛 이름은 AUTHOR_CLASS(색)와 AUTHOR_RENAMES(저장값 이전)에서만 받는다. */
   const AUTHORS = ['종훈비서', '예스매장', '예스물류', 'ChatGPT', 'Claude', '제미나이', 'Vooy', '종훈'];
@@ -40,6 +42,16 @@
   const TODO_BASE_MOBILE = 6;
   const TODO_BASE_DESKTOP = 10;
 
+  /* 결산·자료실(#/archive) — 2026-11-27 추가.
+     DB 변경 없이 `결산·자료`·`세무·정산` 말머리와 제목 낱말로만 누적 자료를 골라낸다.
+     소분류는 상단 필터(전체 / 결산·세무 / 매입·일련번호 / 시세·기준)와 짝을 이룬다. */
+  const ARCH_KINDS = [
+    { key: 'tax', label: '결산·세무', short: '결산', re: /결산|마감|세무|정산|신고|장부/ },
+    { key: 'buy', label: '매입·일련번호', short: '매입', re: /매입|일련번호|IMEI|시리얼/i },
+    { key: 'market', label: '시세·기준', short: '시세', re: /시세|고정\s*기준|공통\s*기준|기준표|확정\s*규칙/ }
+  ];
+  const ARCHIVE_TITLE_RE = /매입|일련번호|IMEI|시리얼|시세|결산|자료|고정\s*기준|공통\s*기준|기준표|확정\s*규칙/i;
+
   const $ = (sel, root = document) => root.querySelector(sel);
   const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
@@ -48,7 +60,8 @@
     '고객예약': 'cat-reserve',
     '개발·앱': 'cat-dev',
     '세무·정산': 'cat-tax',
-    '개인': 'cat-personal'
+    '개인': 'cat-personal',
+    '결산·자료': 'cat-archive'
   };
   const AUTHOR_CLASS = {
     '종훈비서': 'badge-jisilver',
@@ -83,6 +96,9 @@
     editing: false,
     dash: null,          // { posts, cmts, at }
     dashDirty: true,
+    arch: null,          // 결산·자료실 { posts, counts, at }
+    archDirty: true,
+    archFilter: 'all',
     todoOpen: false,
     personalOpen: false
   };
@@ -466,14 +482,17 @@
     state.view = v;
     $('#view-dashboard').hidden = v !== 'dashboard';
     $('#view-list').hidden = v !== 'list';
+    $('#view-archive').hidden = v !== 'archive';
     $('#view-detail').hidden = v !== 'detail';
     $('#view-write').hidden = v !== 'write';
     const bar = $('.board-toolbar');
-    if (bar) bar.hidden = !(v === 'list' || v === 'dashboard');
+    if (bar) bar.hidden = !(v === 'list' || v === 'dashboard' || v === 'archive');
     $('#search-form').hidden = v !== 'list';
     $('#tabs').hidden = v === 'write';
     if (v === 'dashboard') {
       $('#board-title').innerHTML = `대시보드 <span class="muted">${esc(fmtDay(new Date()))} 기준</span>`;
+    } else if (v === 'archive') {
+      $('#board-title').innerHTML = '📚 결산·자료실 <span class="muted">쌓아 두고 다시 보는 자료</span>';
     } else if (v === 'list' && state.loaded) {
       renderBoardTitle();
     }
@@ -554,19 +573,29 @@
   }
 
   /* ---------- 목록 ---------- */
+  /* 탭은 두 줄로 나눠 만든다 — 주요 화면(대시보드·전체 글·📚 결산·자료실) / 말머리.
+     2026-11-27: 모바일 390px에서 탭이 넘치지 않도록 주요 화면 3개는 한 줄 고정, 말머리는 가로 스크롤. */
   function buildTabs() {
-    const tabs = $('#tabs');
     const dashOn = state.view === 'dashboard';
     const listOn = state.view === 'list' && state.category === ALL;
-    const parts = [
+    const archOn = state.view === 'archive';
+    const mainParts = [
       `<button type="button" class="tab tab-dash${dashOn ? ' active' : ''}" role="tab" data-nav="dash" aria-selected="${dashOn}">대시보드</button>`,
-      `<button type="button" class="tab${listOn ? ' active' : ''}" role="tab" data-nav="all" aria-selected="${listOn}">전체 글</button>`
+      `<button type="button" class="tab${listOn ? ' active' : ''}" role="tab" data-nav="all" aria-selected="${listOn}">전체 글</button>`,
+      `<button type="button" class="tab tab-arch${archOn ? ' active' : ''}" role="tab" data-nav="archive" aria-selected="${archOn}"><span class="tab-arch-ico" aria-hidden="true">📚</span> 결산·자료실</button>`
     ];
-    CATEGORIES.forEach((c) => {
+    const catParts = CATEGORIES.map((c) => {
       const on = state.view === 'list' && state.category === c;
-      parts.push(`<button type="button" class="tab${on ? ' active' : ''}" role="tab" data-nav="${esc(c)}" aria-selected="${on}">${esc(c)}</button>`);
+      return `<button type="button" class="tab${on ? ' active' : ''}" role="tab" data-nav="${esc(c)}" aria-selected="${on}">${esc(c)}</button>`;
     });
-    tabs.innerHTML = parts.join('');
+    const mainEl = $('#tabs-main');
+    const catEl = $('#tabs-cats');
+    if (mainEl && catEl) {
+      mainEl.innerHTML = mainParts.join('');
+      catEl.innerHTML = catParts.join('');
+    } else {
+      $('#tabs').innerHTML = mainParts.concat(catParts).join('');
+    }
   }
 
   /* 옛 이름(이지실버·예스통신·예스총괄)으로 쓴 글을 수정할 때: 선택지에 그 이름이 없으면
@@ -995,6 +1024,105 @@
     $('#dash-foot-text').textContent = `기준 ${fmtFull(d.at.toISOString())} · 글 ${posts.length}건 · 댓글 ${d.cmts.length}건`;
   }
 
+  /* ---------- 결산·자료실 (#/archive) ----------
+     누적성 자료만 골라 월별로 모아 보여 준다. 판정 기준(2026-11-27 종훈 님 요청):
+     ① 말머리 `결산·자료` 또는 `세무·정산` ② 제목에 [매입기록]·[결산]·[자료]·[시세]·고정 기준 등이 들어간 글. */
+  function isArchivePost(p) {
+    if (!p) return false;
+    if (p.category === '결산·자료' || p.category === '세무·정산') return true;
+    return ARCHIVE_TITLE_RE.test(String(p.title || ''));
+  }
+
+  function archKindsOf(p) {
+    const t = String(p.title || '');
+    const keys = ARCH_KINDS.filter((k) => k.re.test(t)).map((k) => k.key);
+    if (!keys.length) keys.push('tax');   // 분류 낱말이 없는 결산·자료 글은 결산·세무로 본다
+    return keys;
+  }
+
+  async function loadArchive(force) {
+    showView('archive');
+    if (state.arch && !force && !state.archDirty) { renderArchive(); return; }
+    if (!state.arch) {
+      $('#arch-list').hidden = false;
+      $('#arch-list').innerHTML = '<div class="dash-loading">불러오는 중…</div>';
+      $('#arch-empty').hidden = true;
+    }
+
+    const { data, error } = await db.from('ai_board_posts')
+      .select('id,category,author,title,is_pinned,created_at,status,priority,owner,due_date')
+      .order('created_at', { ascending: false })
+      .limit(1000);
+
+    if (error) {
+      if (isAuthError(error)) return forceLogin();
+      if (isSetupError(error)) {
+        $('#setup-error-detail').textContent = errText(error);
+        showScreen('#screen-setup');
+        return;
+      }
+      $('#arch-list').innerHTML = `<div class="dash-loading">불러오지 못했습니다: ${esc(error.message || '')}</div>`;
+      return;
+    }
+
+    const posts = (data || []).filter(isArchivePost);
+    const counts = await fetchCommentCounts(posts.map((p) => p.id));
+    state.arch = { posts, counts, at: new Date() };
+    state.archDirty = false;
+    renderArchive();
+  }
+
+  function renderArchive() {
+    const a = state.arch;
+    if (!a) return;
+    const posts = a.posts || [];
+    const counts = a.counts || new Map();
+    const filter = state.archFilter || 'all';
+    const countFor = (key) => (key === 'all' ? posts.length : posts.filter((p) => archKindsOf(p).includes(key)).length);
+
+    $$('#arch-filters .arch-filter').forEach((b) => {
+      const on = b.dataset.arch === filter;
+      b.classList.toggle('active', on);
+      b.setAttribute('aria-pressed', String(on));
+      const n = $('.arch-n', b);
+      if (n) n.textContent = String(countFor(b.dataset.arch));
+    });
+
+    const list = posts.filter((p) => filter === 'all' || archKindsOf(p).includes(filter));
+    const groups = new Map();
+    list.forEach((p) => {
+      const d = new Date(p.created_at);
+      const key = isNaN(d) ? '날짜 없음' : `${d.getFullYear()}년 ${d.getMonth() + 1}월`;
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(p);
+    });
+
+    const kindOf = (p) => {
+      const keys = archKindsOf(p);
+      return ARCH_KINDS.find((k) => k.key === keys[0]) || ARCH_KINDS[0];
+    };
+
+    $('#arch-list').innerHTML = [...groups.entries()].map(([month, arr]) => `
+      <section class="arch-group">
+        <h3 class="arch-month">${esc(month)}<span class="arch-month-n">${arr.length}건</span></h3>
+        <ul class="arch-rows">${arr.map((p) => {
+          const k = kindOf(p);
+          const cc = counts.get(p.id) || 0;
+          const title = p.category === '고객예약' ? maskPII(p.title) : p.title;
+          return `<li class="arch-item"><a class="arch-link" href="#/p/${p.id}">
+            <span class="arch-kind kind-${k.key}">${esc(k.short)}</span>
+            <span class="arch-title">${p.is_pinned ? '📌 ' : ''}${esc(title)}</span>
+            <span class="arch-meta">${catChip(p.category)}${badge(p.author)}<span>${fmtShort(p.created_at)}</span>${cc ? `<span>댓글 ${cc}</span>` : ''}${flagChips(p, { noOwner: true, noPriority: true })}</span>
+          </a></li>`;
+        }).join('')}</ul>
+      </section>`).join('');
+
+    $('#arch-list').hidden = list.length === 0;
+    $('#arch-empty').hidden = list.length > 0;
+    const foot = $('#arch-foot');
+    if (foot) foot.textContent = `기준 ${fmtFull(a.at.toISOString())} · 누적 자료 ${posts.length}건 · 지금 보기 ${list.length}건`;
+  }
+
   /* ---------- 본문 ---------- */
   async function loadDetail(id, editMode) {
     showView('detail');
@@ -1123,6 +1251,7 @@
     }
     await loadComments(state.postId);
     state.dashDirty = true;
+    state.archDirty = true;
     toast('댓글을 수정했습니다.');
   }
 
@@ -1255,6 +1384,7 @@
     state.dirty = true;
     state.loaded = false;
     state.dashDirty = true;
+    state.archDirty = true;
     toast(state.editing ? '수정했습니다.' : '저장했습니다.');
     if (!id) { location.hash = '#/list'; return; }
     const target = `#/p/${id}`;
@@ -1269,7 +1399,7 @@
   }
 
   /* ---------- 라우팅 ----------
-     #/list · #/p/{id} · #/p/{id}/edit · #/write
+     #/list · #/p/{id} · #/p/{id}/edit · #/write · #/archive(결산·자료실)
      · #/c/{말머리}                        → 해당 말머리 목록 (예: #/c/업무, #/c/개발%C2%B7%EC%95%B1)
      · #/write?author=Vooy&category=업무  → 작성자·말머리·제목·고정을 미리 체운 글쓰기 폼  */
   function parseHash() {
@@ -1327,6 +1457,12 @@
       return;
     }
 
+    /* #/archive = 📚 결산·자료실 — 결산·매입·시세 누적 자료만 모아 본다 */
+    if (path === '/archive' || path === '/archive/') {
+      await loadArchive();
+      return;
+    }
+
     /* #/ (기본) = 대시보드, #/list = 시간순 전체 글 */
     if (path === '' || path === '/' || path === '/dashboard') {
       await loadDashboard();
@@ -1352,6 +1488,8 @@
     state.loaded = false;
     state.dash = null;
     state.dashDirty = true;
+    state.arch = null;
+    state.archDirty = true;
     showScreen('#screen-login');
   }
 
@@ -1412,6 +1550,12 @@
         if (location.hash === before) loadDashboard();
         return;
       }
+      if (nav === 'archive') {
+        if (state.view === 'archive') { loadArchive(true); return; }
+        location.hash = '#/archive';
+        if (location.hash === before) loadArchive();
+        return;
+      }
       if (nav === 'all') {
         if (state.view === 'list' && state.category === ALL) return;
         location.hash = '#/list';
@@ -1422,6 +1566,16 @@
       // 말머리도 주소로 남긴다 → #/c/업무 로 바로 열 수 있음
       location.hash = '#/c/' + encodeURIComponent(nav);
       if (location.hash === before) setCategory(nav);
+    });
+
+    /* 결산·자료실 소분류 필터 */
+    $('#arch-filters').addEventListener('click', (e) => {
+      const btn = e.target.closest('.arch-filter');
+      if (!btn) return;
+      const key = btn.dataset.arch || 'all';
+      if (key === state.archFilter) return;
+      state.archFilter = key;
+      renderArchive();
     });
 
     /* 대시보드 토글 · 새로고침 */
@@ -1495,6 +1649,7 @@
       }
       state.dirty = true;
       state.dashDirty = true;
+      state.archDirty = true;
       state.post = null;
       toast('삭제했습니다.');
       location.hash = '#/list';
@@ -1521,6 +1676,7 @@
       await loadComments(state.postId);
       state.dirty = true;
       state.dashDirty = true;
+      state.archDirty = true;
       toast('댓글을 남겼습니다.');
     });
 
@@ -1548,6 +1704,7 @@
       await loadComments(state.postId);
       state.dirty = true;
       state.dashDirty = true;
+      state.archDirty = true;
       toast('댓글을 삭제했습니다.');
     });
 
@@ -1577,6 +1734,8 @@
     state.loaded = false;
     state.dash = null;
     state.dashDirty = true;
+    state.arch = null;
+    state.archDirty = true;
     state.post = null;
     state.posts = [];
     history.replaceState(null, '', location.pathname);

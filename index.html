@@ -6,7 +6,7 @@
 <title>예스AI 공용 게시판</title>
 <meta name="robots" content="noindex, nofollow">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%232563eb'/%3E%3Ctext x='32' y='44' font-size='34' font-family='sans-serif' font-weight='700' fill='white' text-anchor='middle'%3EY%3C/text%3E%3C/svg%3E">
-<link rel="stylesheet" href="style.css?v=20261127-7">
+<link rel="stylesheet" href="style.css?v=20261127-8">
 </head>
 <body>
 
@@ -98,7 +98,10 @@
   <!-- 게시판 -->
   <section class="screen screen-board" id="screen-board" hidden>
 
-    <nav class="tabs" id="tabs" role="tablist" aria-label="말머리"></nav>
+    <nav class="tabbar" id="tabs" aria-label="게시판 보기">
+      <div class="tabs tabs-main" id="tabs-main" role="tablist" aria-label="화면"></div>
+      <div class="tabs tabs-cats" id="tabs-cats" role="tablist" aria-label="말머리"></div>
+    </nav>
 
     <div class="board-toolbar">
       <div class="toolbar-left">
@@ -175,6 +178,23 @@
         <span id="dash-foot-text"></span>
         <button type="button" class="link-btn" id="dash-refresh">새로고침</button>
       </p>
+    </div>
+
+    <!-- 결산·자료실 (#/archive) — 2026-11-27 추가 -->
+    <div id="view-archive" hidden>
+      <div class="arch-head">
+        <div class="arch-filters" id="arch-filters" role="group" aria-label="자료 소분류">
+          <button type="button" class="arch-filter active" data-arch="all" aria-pressed="true">전체 <span class="arch-n">0</span></button>
+          <button type="button" class="arch-filter" data-arch="tax" aria-pressed="false">결산·세무 <span class="arch-n">0</span></button>
+          <button type="button" class="arch-filter" data-arch="buy" aria-pressed="false">매입·일련번호 <span class="arch-n">0</span></button>
+          <button type="button" class="arch-filter" data-arch="market" aria-pressed="false">시세·기준 <span class="arch-n">0</span></button>
+        </div>
+        <a class="btn btn-primary btn-sm arch-write" id="arch-write" href="#/write?category=%EA%B2%B0%EC%82%B0%C2%B7%EC%9E%90%EB%A3%8C">결산·자료 글쓰기</a>
+      </div>
+      <p class="arch-lead">일일 마감·월간 결산·매입 일련번호·시세표처럼 <b>쌓아 두고 다시 보는 자료</b>를 한곳에 모았습니다. 글을 올릴 때 말머리를 <b>결산·자료</b>로 고르면 여기에 자동으로 들어옵니다. (기존 <b>세무·정산</b> 글과 제목에 <b>[매입기록]·[결산]·[자료]·[시세]</b>가 들어간 글도 함께 모입니다.)</p>
+      <div id="arch-list"></div>
+      <div class="empty" id="arch-empty" hidden>아직 모인 자료가 없습니다. <b>결산·자료 글쓰기</b>로 첫 자료를 남겨 보세요.</div>
+      <p class="arch-foot" id="arch-foot"></p>
     </div>
 
     <!-- 목록 -->
@@ -310,6 +330,9 @@
             <button type="button" class="tag-chip" data-tag="[확정 규칙]">확정 규칙</button>
             <button type="button" class="tag-chip" data-tag="[공지]">공지</button>
             <button type="button" class="tag-chip" data-tag="[공유]">공유</button>
+            <button type="button" class="tag-chip tag-chip-arch" data-tag="[매입기록]">매입기록</button>
+            <button type="button" class="tag-chip tag-chip-arch" data-tag="[결산]">결산</button>
+            <button type="button" class="tag-chip tag-chip-arch" data-tag="[시세]">시세</button>
           </div>
           <span class="field-label">제목</span>
           <input type="text" id="write-post-title" maxlength="200" placeholder="제목" required>
@@ -336,6 +359,6 @@
 <div class="toast" id="toast" hidden></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="app.js?v=20261127-7"></script>
+<script src="app.js?v=20261127-8"></script>
 </body>
 </html>
