@@ -28,6 +28,13 @@
     const saved = canonicalAuthor(localStorage.getItem('yes_ai_board_author'));
     return AUTHORS.includes(saved) ? saved : '';
   }
+  /* 받침 유무에 맞는 조사 — '예스매장으로' / '종훈비서로' */
+  function josaRo(word) {
+    const s = String(word || '');
+    const c = s.charCodeAt(s.length - 1);
+    if (!(c >= 0xac00 && c <= 0xd7a3)) return '로';
+    return (c - 0xac00) % 28 === 0 ? '로' : '으로';
+  }
   const PAGE_SIZE = 15;
   const ALL = '전체';
 
@@ -1557,7 +1564,7 @@
         localStorage.setItem(DEFAULT_AUTHOR_KEY, v);
         $('#write-author').value = v;
         $('#comment-author').value = v;
-        toast(`기본 작성자를 '${v}'(으)로 정했습니다.`);
+        toast(`기본 작성자를 '${v}'${josaRo(v)} 정했습니다.`);
       } else {
         localStorage.removeItem(DEFAULT_AUTHOR_KEY);
         toast('기본 작성자를 정하지 않았습니다. 최근에 쓴 이름을 씁니다.');

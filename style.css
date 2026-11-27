@@ -62,7 +62,6 @@ pre{margin:0;white-space:pre-wrap;word-break:break-word}
 }
 .top-search-btn:hover{color:var(--accent)}
 .topbar-right{display:flex;align-items:center;gap:7px;min-width:0;flex:none;margin-left:auto}
-.btn-top-logout{height:29px;padding:0 10px;font-size:12.2px;font-weight:600;border-radius:7px;letter-spacing:-.2px}
 .btn-top-menu{width:30px;height:30px;padding:0;border-radius:7px;color:var(--ink-2);flex:none}
 #btn-menu{height:30px;padding:0;width:30px}
 #btn-menu svg{flex:none;display:block}
@@ -564,8 +563,7 @@ pre{margin:0;white-space:pre-wrap;word-break:break-word}
   .top-search-btn{width:26px;height:26px}
   .who{display:none}
   .btn-top-write{height:28px;padding:0 8px;font-size:11.8px;gap:2px}
-  .btn-top-logout{height:28px;padding:0 7px;font-size:11.6px}
-  .btn-top-menu{width:28px;height:28px;border-radius:7px}
+    .btn-top-menu{width:28px;height:28px;border-radius:7px}
   #btn-menu{width:28px;height:28px}
   .menu-pop{right:10px;width:min(268px,calc(100vw - 20px));padding:12px}
   .topbar-right{gap:5px}
