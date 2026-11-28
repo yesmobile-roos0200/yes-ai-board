@@ -63,6 +63,23 @@
   const PRIORITY_LABEL = { 1: '중요도 1', 2: '중요도 2', 3: '중요도 3' };
   const DUE_SOON_DAYS = 7;
 
+  /* 2026-11-28: 러버블 yescom-game-hq /missions·/history 의 2순위 장기 일정(issues) 통합.
+     테이블은 같은 Supabase 프로젝트의 `issues`를 그대로 쓰고, 컬럼·값은 실측 그대로 맞춘다.
+     · 분류: 고객예약·금전·법무·매장·세금·행정·재고·기타 · 상태: 대기·진행중·확인필요·완료(진행 목록에서 빠짐) · 중요도: 높음·보통·낮음 */
+  const ISSUE_CATEGORIES = ['고객예약', '금전', '법무', '매장', '세금·행정', '재고', '기타'];
+  const ISSUE_STATUSES = ['대기', '진행중', '확인필요', '완료'];
+  const ISSUE_PRIORITIES = ['높음', '보통', '낮음'];
+  const ISSUE_DONE = '완료';
+  const ISSUE_CAT_CLASS = {
+    '고객예약': 'ic-reserve',
+    '금전': 'ic-money',
+    '법무': 'ic-legal',
+    '매장': 'ic-store',
+    '세금·행정': 'ic-tax',
+    '재고': 'ic-stock',
+    '기타': 'ic-etc'
+  };
+
   /* 결산·자료실(#/archive) — 2026-11-27 추가.
      DB 변경 없이 `결산·자료`·`세무·정산` 말머리와 제목 낱말로만 누적 자료를 골라낸다.
      소분류는 상단 필터(전체 / 결산·세무 / 매입·일련번호 / 시세·기준)와 짝을 이룬다. */
@@ -127,7 +144,14 @@
     linesDirty: true,
     linesFilter: '전체',
     lineOpenId: null,     // 상세 모달에 열린 회선 id
-    lineFormId: null      // 수정 중인 회선 id (신규면 null)
+    lineFormId: null,     // 수정 중인 회선 id (신규면 null)
+    issues: null,         // 일정 { list, at }
+    issuesDirty: true,
+    issuesMode: 'active', // active = 진행 중 · done = 완료 기록
+    issuesFilter: '전체',
+    issuesHistCat: '전체',
+    issuesHistQ: '',
+    issueFormId: null     // 수정 중인 일정 id (신규면 null)
   };
 
   let db = null;
@@ -472,6 +496,8 @@
     $('#view-archive').hidden = v !== 'archive';
     const linesView = $('#view-lines');
     if (linesView) linesView.hidden = v !== 'lines';
+    const issView = $('#view-issues');
+    if (issView) issView.hidden = v !== 'issues';
     $('#view-detail').hidden = v !== 'detail';
     $('#view-write').hidden = v !== 'write';
     const bar = $('.board-toolbar');
@@ -568,10 +594,12 @@
     const listOn = state.view === 'list' && state.category === ALL;
     const archOn = state.view === 'archive';
     const linesOn = state.view === 'lines';
+    const issOn = state.view === 'issues';
     const mainParts = [
       `<button type="button" class="tab${listOn ? ' active' : ''}" role="tab" data-nav="all" aria-selected="${listOn}">전체 글</button>`,
       `<button type="button" class="tab tab-arch${archOn ? ' active' : ''}" role="tab" data-nav="archive" aria-selected="${archOn}">결산·자료실</button>`,
-      `<button type="button" class="tab tab-lines${linesOn ? ' active' : ''}" role="tab" data-nav="lines" aria-selected="${linesOn}">회선</button>`
+      `<button type="button" class="tab tab-lines${linesOn ? ' active' : ''}" role="tab" data-nav="lines" aria-selected="${linesOn}">회선</button>`,
+      `<button type="button" class="tab tab-iss${issOn ? ' active' : ''}" role="tab" data-nav="issues" aria-selected="${issOn}">일정</button>`
     ];
     const catParts = CATEGORIES.map((c) => {
       const on = state.view === 'list' && state.category === c;
@@ -1983,6 +2011,476 @@
     });
   }
 
+  /* ---------- 일정 (#/issues) ----------
+     러버를 yescom-game-hq /missions(진행 중) · /history(완료 기록)를 게시판 안으로 옮겼다.
+     DB는 같은 Supabase 프로젝트(`mveldownctofvhwcgnzz`)의 `issues`를 그대로 쓴다 — 새 테이블·복제 없음.
+     실측 스키마: id(identity) · title · category · status · priority · due_date(date) · scheduled_at(timestamptz)
+       · next_action · amount(bigint) · result_note · is_active(bool) · created_at · updated_at · completed_at */
+  const KST_YMD_FMT = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit' });
+  const KST_DT_FMT = new Intl.DateTimeFormat('ko-KR', { timeZone: 'Asia/Seoul', month: '2-digit', day: '2-digit', weekday: 'short', hour: '2-digit', minute: '2-digit', hour12: false });
+  const KST_TIME_FMT = new Intl.DateTimeFormat('ko-KR', { timeZone: 'Asia/Seoul', hour: '2-digit', minute: '2-digit', hour12: false });
+  const KST_INPUT_FMT = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false });
+
+  function kstParts(fmt, iso) {
+    const d = new Date(iso);
+    if (!iso || isNaN(d.getTime())) return null;
+    const p = fmt.formatToParts(d);
+    const out = {};
+    p.forEach((x) => { if (x.type !== 'literal') out[x.type] = x.value; });
+    if (out.hour === '24') out.hour = '00';
+    return out;
+  }
+  function kstYmd(iso) {
+    const p = kstParts(KST_YMD_FMT, iso);
+    return p ? `${p.year}-${p.month}-${p.day}` : null;
+  }
+  function todayKstYmd() { return kstYmd(new Date().toISOString()); }
+  function fmtKstDateTime(iso) {
+    const p = kstParts(KST_DT_FMT, iso);
+    return p ? `${p.month}.${p.day}(${p.weekday}) ${p.hour}:${p.minute}` : '';
+  }
+  function fmtKstTime(iso) {
+    const p = kstParts(KST_TIME_FMT, iso);
+    return p ? `${p.hour}:${p.minute}` : '';
+  }
+  function kstInputValue(iso) {
+    const p = kstParts(KST_INPUT_FMT, iso);
+    return p ? `${p.year}-${p.month}-${p.day}T${p.hour}:${p.minute}` : '';
+  }
+  /* datetime-local 값은 KST로 보여 주므로 저장할 땐 KST(UTC+9) 기준으로 되돌린다 */
+  function kstInputToIso(v) {
+    const m = String(v || '').match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
+    if (!m) return null;
+    return new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]), Number(m[4]) - 9, Number(m[5]), 0)).toISOString();
+  }
+  function fmtMd(ymd) {
+    const d = ymdDate(ymd);
+    return d ? `${pad(d.getMonth() + 1)}.${pad(d.getDate())}` : '';
+  }
+
+  function issueStore() { return state.issues || { list: [], at: null }; }
+  function issueById(id) { return issueStore().list.find((i) => String(i.id) === String(id)) || null; }
+  function issueIsDone(i) { return i.status === ISSUE_DONE; }
+  function issueDueYmd(i) { return i && i.due_date ? String(i.due_date).slice(0, 10) : null; }
+  /* D-day 기준 날짜 — 예약일시가 있으면 그 날, 없으면 목표일 */
+  function issueWhen(i) { return i.scheduled_at ? kstYmd(i.scheduled_at) : issueDueYmd(i); }
+  function issueDaysLeft(i) {
+    const d = ymdDate(issueWhen(i));
+    const t = ymdDate(todayKstYmd());
+    if (!d || !t) return null;
+    return Math.round((d.getTime() - t.getTime()) / 86400000);
+  }
+
+  function issueStats() {
+    const all = issueStore().list;
+    const active = all.filter((i) => !issueIsDone(i));
+    const soon = active.filter((i) => { const n = issueDaysLeft(i); return n != null && n >= 0 && n <= 7; });
+    const over = active.filter((i) => { const n = issueDaysLeft(i); return n != null && n < 0; });
+    return { total: all.length, active: active.length, done: all.length - active.length, soon: soon.length, over: over.length };
+  }
+
+  function issuesForFilter() {
+    const active = issueStore().list.filter((i) => !issueIsDone(i));
+    const f = state.issuesFilter || '전체';
+    let list = active;
+    if (f === '오늘') list = active.filter((i) => issueDaysLeft(i) === 0);
+    else if (f === '7일 이내') list = active.filter((i) => { const n = issueDaysLeft(i); return n != null && n >= 0 && n <= 7; });
+    else if (f !== '전체') list = active.filter((i) => i.category === f);
+    const rank = (n) => (n == null ? 3 : n < 0 ? 0 : 1);
+    const pr = (i) => { const k = ISSUE_PRIORITIES.indexOf(i.priority || '보통'); return k < 0 ? 1 : k; };
+    return [...list].sort((a, b) => {
+      const na = issueDaysLeft(a);
+      const nb = issueDaysLeft(b);
+      const ra = rank(na);
+      const rb = rank(nb);
+      if (ra !== rb) return ra - rb;
+      if (na != null && nb != null && na !== nb) return na - nb;
+      if (pr(a) !== pr(b)) return pr(a) - pr(b);
+      return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
+    });
+  }
+
+  function issueItemHtml(i) {
+    const n = issueDaysLeft(i);
+    const cls = n == null ? '' : ddayClass(n);
+    const catCls = ISSUE_CAT_CLASS[i.category] || 'ic-etc';
+    const stCls = i.status === '진행중' ? 'is-doing' : i.status === '확인필요' ? 'is-check' : i.status === ISSUE_DONE ? 'is-done' : '';
+    const prCls = i.priority === '높음' ? 'is-high' : i.priority === '낮음' ? 'is-low' : '';
+    const when = i.scheduled_at
+      ? `예약 ${fmtKstDateTime(i.scheduled_at)}`
+      : issueDueYmd(i) ? `목표 ${fmtMd(issueDueYmd(i))}` : '일정 없음';
+    const badge = n == null ? '' : `<span class="ln-dday ${ddayClass(n)}">${esc(ddayText(n))}</span>`;
+    return `<li class="ln-item ${cls}">
+      <div class="ln-item-top">
+        <span class="iss-chips">
+          <span class="ic-chip ${catCls}">${esc(i.category || '기타')}</span>
+          <span class="iss-st ${stCls}">${esc(i.status || '대기')}</span>
+          <span class="iss-pr ${prCls}">${esc(i.priority || '보통')}</span>
+        </span>
+        ${badge}
+      </div>
+      <h3 class="iss-title">${esc(i.title || '(제목 없음)')}</h3>
+      <div class="iss-when">
+        <span class="iss-due">${esc(when)}</span>
+        ${i.amount != null ? `<span class="iss-amount">${esc(won(i.amount))}</span>` : ''}
+      </div>
+      ${i.next_action ? `<div class="iss-next">${esc(i.next_action)}</div>` : ''}
+      <div class="iss-actions">
+        <button type="button" class="ln-btn ln-btn-xs" data-iss-edit="${esc(i.id)}">수정</button>
+        <button type="button" class="ln-btn ln-btn-xs ok" data-iss-done="${esc(i.id)}">완료</button>
+      </div>
+    </li>`;
+  }
+
+  function issueHistItemHtml(i) {
+    const catCls = ISSUE_CAT_CLASS[i.category] || 'ic-etc';
+    const when = i.completed_at ? fmtKstTime(i.completed_at) : '';
+    return `<li class="ln-item">
+      <div class="ln-item-top">
+        <span class="iss-chips">
+          <span class="ic-chip ${catCls}">${esc(i.category || '기타')}</span>
+          ${issueDueYmd(i) ? `<span class="iss-pr">목표 ${esc(fmtMd(issueDueYmd(i)))}</span>` : ''}
+          ${i.amount != null ? `<span class="iss-pr">${esc(won(i.amount))}</span>` : ''}
+        </span>
+        ${when ? `<span class="iss-pr">${esc(when)} 완료</span>` : ''}
+      </div>
+      <h3 class="iss-title">${esc(i.title || '(제목 없음)')}</h3>
+      ${i.next_action ? `<div class="iss-next">${esc(i.next_action)}</div>` : ''}
+      ${i.result_note ? `<div class="iss-result"><span class="iss-result-k">처리결과</span>${esc(i.result_note)}</div>` : ''}
+      <div class="iss-actions"><button type="button" class="ln-btn ln-btn-xs" data-iss-edit="${esc(i.id)}">수정</button></div>
+    </li>`;
+  }
+
+  function renderIssueHistory() {
+    const q = (state.issuesHistQ || '').trim().toLowerCase();
+    const cat = state.issuesHistCat || '전체';
+    let rows = issueStore().list.filter((i) => issueIsDone(i));
+    if (cat !== '전체') rows = rows.filter((i) => i.category === cat);
+    if (q) {
+      rows = rows.filter((i) => [i.title, i.next_action, i.result_note]
+        .filter(Boolean).join(' ').toLowerCase().includes(q));
+    }
+    const stamp = (i) => (i.completed_at ? new Date(i.completed_at).getTime()
+      : issueDueYmd(i) ? new Date(issueDueYmd(i) + 'T00:00:00+09:00').getTime()
+        : new Date(i.created_at || 0).getTime());
+    rows.sort((a, b) => stamp(b) - stamp(a));
+    const groups = new Map();
+    rows.forEach((i) => {
+      const key = (i.completed_at && kstYmd(i.completed_at)) || issueDueYmd(i) || kstYmd(i.created_at) || '';
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(i);
+    });
+    const html = Array.from(groups.entries()).map(([key, items]) => {
+      const d = ymdDate(key);
+      const label = d ? `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일` : '날짜 없음';
+      return `<div class="iss-hist-group">
+        <h3 class="iss-hist-month">${esc(label)} <span class="iss-n">${items.length}건</span></h3>
+        <ul class="ln-list">${items.map(issueHistItemHtml).join('')}</ul>
+      </div>`;
+    }).join('');
+    const box = $('#iss-history-list');
+    if (box) box.innerHTML = html;
+    const empty = $('#iss-history-empty');
+    if (empty) empty.hidden = rows.length > 0;
+    const foot = $('#iss-history-foot');
+    if (foot) foot.textContent = `완료 기록 ${rows.length}건${cat !== '전체' ? ` · ${cat}` : ''}${q ? ` · ‘${q}’ 검색` : ''}`;
+  }
+
+  function renderIssues() {
+    const s = issueStats();
+    $('#iss-sum-soon').textContent = String(s.soon);
+    $('#iss-sum-active').textContent = String(s.active);
+    $('#iss-sum-over').textContent = String(s.over);
+    $('#iss-mode-active-n').textContent = String(s.active);
+    $('#iss-mode-done-n').textContent = String(s.done);
+    $$('#iss-modes button').forEach((b) => {
+      const on = b.dataset.issMode === (state.issuesMode || 'active');
+      b.classList.toggle('on', on);
+      b.setAttribute('aria-pressed', String(on));
+    });
+    $('#iss-pane-active').hidden = state.issuesMode === 'done';
+    $('#iss-pane-done').hidden = state.issuesMode !== 'done';
+
+    const active = issueStore().list.filter((i) => !issueIsDone(i));
+    const counts = {
+      '전체': active.length,
+      '오늘': active.filter((i) => issueDaysLeft(i) === 0).length,
+      '7일 이내': active.filter((i) => { const n = issueDaysLeft(i); return n != null && n >= 0 && n <= 7; }).length
+    };
+    ISSUE_CATEGORIES.forEach((c) => { counts[c] = active.filter((i) => i.category === c).length; });
+    $$('#iss-filters .ln-filter').forEach((b) => {
+      const key = b.dataset.issFilter;
+      const on = key === (state.issuesFilter || '전체');
+      b.classList.toggle('active', on);
+      b.setAttribute('aria-pressed', String(on));
+      const n = $('.ln-n', b);
+      if (n) n.textContent = String(counts[key] || 0);
+    });
+    $$('#iss-hist-filters .ln-filter').forEach((b) => {
+      const on = b.dataset.issHistFilter === (state.issuesHistCat || '전체');
+      b.classList.toggle('active', on);
+      b.setAttribute('aria-pressed', String(on));
+    });
+
+    const list = issuesForFilter();
+    const ul = $('#iss-list');
+    ul.innerHTML = list.map(issueItemHtml).join('');
+    ul.hidden = list.length === 0;
+    $('#iss-empty').hidden = list.length > 0;
+    const foot = $('#iss-foot');
+    if (foot) {
+      foot.textContent = state.issues && state.issues.at
+        ? `기준 ${fmtFull(state.issues.at.toISOString())} · 진행 ${s.active}건 · 완료 ${s.done}건`
+        : '';
+    }
+    renderIssueHistory();
+  }
+
+  async function loadIssues(force) {
+    showView('issues');
+    if (state.issues && !force && !state.issuesDirty) { renderIssues(); return; }
+    if (!state.issues) {
+      $('#iss-list').innerHTML = '<li class="ln-loading">불러오는 중…</li>';
+      $('#iss-list').hidden = false;
+      $('#iss-empty').hidden = true;
+    }
+    const { data, error } = await db.from('issues').select('*').order('created_at', { ascending: false });
+    if (error) {
+      if (isAuthError(error)) return forceLogin();
+      const msg = (error.code === '42501' || error.code === 'PGRST301')
+        ? '일정 데이터에 접근할 권한이 없습니다. (Supabase RLS)'
+        : (error.message || String(error));
+      $('#iss-list').innerHTML = `<li class="ln-loading">일정을 불러오지 못했습니다: ${esc(msg)}</li>`;
+      return;
+    }
+    state.issues = { list: data || [], at: new Date() };
+    state.issuesDirty = false;
+    renderIssues();
+  }
+
+  /* --- 폼 --- */
+  function issueSegSet(sel, value, key) {
+    $$(sel + ' button').forEach((b) => {
+      const on = b.dataset[key] === value;
+      b.classList.toggle('on', on);
+      b.setAttribute('aria-pressed', String(on));
+    });
+  }
+  function issueFormState() {
+    const f = $('#issue-form');
+    return {
+      cat: (f && f.dataset.cat) || '기타',
+      status: (f && f.dataset.status) || '대기',
+      priority: (f && f.dataset.priority) || '보통'
+    };
+  }
+  function syncIssueFormUi() {
+    const { status } = issueFormState();
+    const hint = $('#iss-f-result-hint');
+    if (hint) hint.textContent = status === ISSUE_DONE ? '(완료 기록에 같이 남습니다)' : '(완료일 때 적습니다)';
+  }
+  function showIssueFormError(msg) {
+    const el = $('#iss-form-error');
+    if (!el) return;
+    el.textContent = msg;
+    el.hidden = !msg;
+  }
+
+  function openIssueForm(id, presetCat) {
+    const i = id ? issueById(id) : null;
+    state.issueFormId = i ? String(i.id) : null;
+    $('#issue-form-title').textContent = i ? '일정 수정' : '새 일정';
+    const cat = i ? i.category : (ISSUE_CATEGORIES.includes(presetCat) ? presetCat : '기타');
+    const status = i ? (i.status || '대기') : '대기';
+    const priority = i ? (i.priority || '보통') : '보통';
+    const f = $('#issue-form');
+    f.dataset.cat = cat;
+    f.dataset.status = status;
+    f.dataset.priority = priority;
+    issueSegSet('#iss-f-cats', cat, 'issCat');
+    issueSegSet('#iss-f-status', status, 'issStatus');
+    issueSegSet('#iss-f-priority', priority, 'issPriority');
+    $('#iss-f-title').value = (i && i.title) || '';
+    $('#iss-f-due').value = issueDueYmd(i) || '';
+    $('#iss-f-sched').value = i && i.scheduled_at ? kstInputValue(i.scheduled_at) : '';
+    $('#iss-f-next').value = (i && i.next_action) || '';
+    $('#iss-f-amount').value = i && i.amount != null ? Number(i.amount).toLocaleString('ko-KR') : '';
+    $('#iss-f-result').value = (i && i.result_note) || '';
+    showIssueFormError('');
+    syncIssueFormUi();
+    openModal('#issue-form-modal');
+    setTimeout(() => { const el = $('#iss-f-title'); if (el) el.focus(); }, 80);
+  }
+
+  async function submitIssueForm(e) {
+    e.preventDefault();
+    showIssueFormError('');
+    const v = issueFormState();
+    const title = $('#iss-f-title').value.trim();
+    if (!title) return showIssueFormError('제목을 입력해 주세요.');
+    if (!ISSUE_CATEGORIES.includes(v.cat)) return showIssueFormError('분류를 골라 주세요.');
+    if (!ISSUE_STATUSES.includes(v.status)) return showIssueFormError('상태를 골라 주세요.');
+    const amountRaw = digitsOnly($('#iss-f-amount').value);
+    const payload = {
+      title,
+      category: v.cat,
+      status: v.status,
+      priority: v.priority,
+      due_date: $('#iss-f-due').value || null,
+      scheduled_at: kstInputToIso($('#iss-f-sched').value),
+      next_action: $('#iss-f-next').value.trim() || null,
+      amount: amountRaw ? Number(amountRaw) : null,
+      result_note: $('#iss-f-result').value.trim() || null
+    };
+    const cur = state.issueFormId ? issueById(state.issueFormId) : null;
+    if (v.status === ISSUE_DONE) {
+      payload.is_active = false;
+      payload.completed_at = (cur && cur.completed_at) || new Date().toISOString();
+    } else {
+      payload.is_active = true;
+      payload.completed_at = null;
+    }
+
+    const btn = $('#btn-issue-save');
+    const label = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = '저장 중…';
+    try {
+      if (state.issueFormId) {
+        const { error } = await db.from('issues').update(payload).eq('id', state.issueFormId);
+        if (error) throw error;
+        toast('일정을 수정했습니다.');
+      } else {
+        const { error } = await db.from('issues').insert(payload);
+        if (error) throw error;
+        toast('일정을 등록했습니다.');
+      }
+      closeModal('#issue-form-modal');
+      state.issueFormId = null;
+      state.issuesDirty = true;
+      await loadIssues(true);
+    } catch (err) {
+      showIssueFormError(lineDbError(err));
+    } finally {
+      btn.disabled = false;
+      btn.textContent = label;
+    }
+  }
+
+  /* --- 완료 처리 --- */
+  function openIssueComplete(id) {
+    const i = issueById(id);
+    if (!i) return;
+    $('#iss-c-id').value = String(i.id);
+    $('#iss-c-note').value = i.result_note || '';
+    const short = String(i.title || '').length > 24 ? String(i.title).slice(0, 24) + '…' : String(i.title || '');
+    $('#issue-complete-title').textContent = `${short} 완료`;
+    $('#iss-complete-error').hidden = true;
+    openModal('#issue-complete-modal');
+  }
+
+  async function submitIssueComplete(e) {
+    e.preventDefault();
+    const id = $('#iss-c-id').value;
+    const note = $('#iss-c-note').value.trim();
+    const errEl = $('#iss-complete-error');
+    errEl.hidden = true;
+    if (!id) return;
+    const btn = $('#btn-issue-complete');
+    btn.disabled = true;
+    try {
+      const { error } = await db.from('issues').update({
+        status: ISSUE_DONE,
+        is_active: false,
+        completed_at: new Date().toISOString(),
+        result_note: note || null
+      }).eq('id', id);
+      if (error) throw error;
+      toast('완료 처리했습니다. 완료 기록에서 다시 볼 수 있습니다.');
+      closeModal('#issue-complete-modal');
+      state.issuesDirty = true;
+      await loadIssues(true);
+    } catch (ex) {
+      errEl.textContent = lineDbError(ex);
+      errEl.hidden = false;
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  function bindIssues() {
+    const view = $('#view-issues');
+    if (view) {
+      view.addEventListener('click', (e) => {
+        if (e.target.closest('#btn-issue-new')) { openIssueForm(null); return; }
+        const mode = e.target.closest('[data-iss-mode]');
+        if (mode) {
+          state.issuesMode = mode.dataset.issMode === 'done' ? 'done' : 'active';
+          renderIssues();
+          return;
+        }
+        const quick = e.target.closest('[data-iss-quick]');
+        if (quick) { openIssueForm(null, quick.dataset.issQuick); return; }
+        const f = e.target.closest('[data-iss-filter]');
+        if (f) { state.issuesFilter = f.dataset.issFilter; renderIssues(); return; }
+        const hf = e.target.closest('[data-iss-hist-filter]');
+        if (hf) { state.issuesHistCat = hf.dataset.issHistFilter; renderIssues(); return; }
+        const ed = e.target.closest('[data-iss-edit]');
+        if (ed) { openIssueForm(ed.dataset.issEdit); return; }
+        const done = e.target.closest('[data-iss-done]');
+        if (done) { openIssueComplete(done.dataset.issDone); }
+      });
+    }
+
+    const search = $('#iss-history-search');
+    if (search) {
+      search.addEventListener('input', () => {
+        state.issuesHistQ = search.value;
+        renderIssueHistory();
+      });
+    }
+
+    const formModal = $('#issue-form-modal');
+    if (formModal) {
+      formModal.addEventListener('click', (e) => {
+        if (e.target.closest('[data-iss-close]') || e.target === formModal) {
+          closeModal('#issue-form-modal');
+          state.issueFormId = null;
+          return;
+        }
+        const c = e.target.closest('[data-iss-cat]');
+        if (c) {
+          $('#issue-form').dataset.cat = c.dataset.issCat;
+          issueSegSet('#iss-f-cats', c.dataset.issCat, 'issCat');
+          return;
+        }
+        const status = e.target.closest('[data-iss-status]');
+        if (status) {
+          $('#issue-form').dataset.status = status.dataset.issStatus;
+          issueSegSet('#iss-f-status', status.dataset.issStatus, 'issStatus');
+          syncIssueFormUi();
+          return;
+        }
+        const priority = e.target.closest('[data-iss-priority]');
+        if (priority) {
+          $('#issue-form').dataset.priority = priority.dataset.issPriority;
+          issueSegSet('#iss-f-priority', priority.dataset.issPriority, 'issPriority');
+        }
+      });
+      const form = $('#issue-form');
+      if (form) form.addEventListener('submit', submitIssueForm);
+    }
+
+    const compModal = $('#issue-complete-modal');
+    if (compModal) {
+      compModal.addEventListener('click', (e) => {
+        if (e.target.closest('[data-iss-close]') || e.target === compModal) closeModal('#issue-complete-modal');
+      });
+      const cf = $('#issue-complete-form');
+      if (cf) cf.addEventListener('submit', submitIssueComplete);
+    }
+  }
+
   /* ---------- 본문 ---------- */
   async function loadDetail(id, editMode) {
     showView('detail');
@@ -2348,6 +2846,12 @@
       return;
     }
 
+    /* #/issues = 일정 — 러버블 yescom-game-hq /missions·/history 의 issues 를 그대로 쓴다 */
+    if (path === '/issues' || path === '/issues/') {
+      await loadIssues();
+      return;
+    }
+
     /* #/list?q=검색어 = 상단 통합검색 결과 (제목·내용) */
     if (path === '/list' || path === '/list/') {
       const q = sanitizeTerm(params.get('q') || '');
@@ -2389,6 +2893,8 @@
     state.archDirty = true;
     state.lines = null;
     state.linesDirty = true;
+    state.issues = null;
+    state.issuesDirty = true;
     showScreen('#screen-login');
   }
 
@@ -2479,6 +2985,12 @@
         if (state.view === 'lines') { loadLines(true); return; }
         location.hash = '#/lines';
         if (location.hash === before) loadLines();
+        return;
+      }
+      if (nav === 'issues') {
+        if (state.view === 'issues') { loadIssues(true); return; }
+        location.hash = '#/issues';
+        if (location.hash === before) loadIssues();
         return;
       }
       if (nav === 'all') {
@@ -2655,6 +3167,9 @@
     state.linesDirty = true;
     state.lineOpenId = null;
     state.lineFormId = null;
+    state.issues = null;
+    state.issuesDirty = true;
+    state.issueFormId = null;
     history.replaceState(null, '', location.pathname);
     showScreen('#screen-login');
   }
@@ -2673,6 +3188,7 @@
   async function boot() {
     bind();
     bindLines();
+    bindIssues();
 
     if (!window.supabase || typeof window.supabase.createClient !== 'function') {
       showScreen('#screen-login');

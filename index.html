@@ -6,7 +6,7 @@
 <title>예스AI 공용 게시판</title>
 <meta name="robots" content="noindex, nofollow">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%232563eb'/%3E%3Ctext x='32' y='44' font-size='34' font-family='sans-serif' font-weight='700' fill='white' text-anchor='middle'%3EY%3C/text%3E%3C/svg%3E">
-<link rel="stylesheet" href="style.css?v=20261128-10">
+<link rel="stylesheet" href="style.css?v=20261128-11">
 </head>
 <body>
 
@@ -226,6 +226,73 @@
       <ul class="ln-list" id="ln-list"></ul>
       <div class="ln-empty" id="ln-empty" hidden>등록된 회선이 없습니다. <b>+ 등록</b>으로 첫 회선을 넣어 보세요.</div>
       <p class="ln-foot" id="ln-foot"></p>
+    </div>
+
+    <!-- 일정 (#/issues) — 2026-11-28 러버블 yescom-game-hq /missions·/history 의 2순위 장기 일정(issues) 통합 -->
+    <div id="view-issues" hidden>
+      <section class="ln-summary iss-summary" aria-label="일정 요약">
+        <div class="ln-sum-item"><span class="ln-sum-k">7일 이내</span><b class="ln-sum-v" id="iss-sum-soon">0</b></div>
+        <div class="ln-sum-item"><span class="ln-sum-k">전체(진행)</span><b class="ln-sum-v" id="iss-sum-active">0</b></div>
+        <div class="ln-sum-item"><span class="ln-sum-k">기한 초과</span><b class="ln-sum-v" id="iss-sum-over">0</b></div>
+        <div class="ln-sum-total iss-sum-add">
+          <button type="button" class="btn btn-primary btn-sm" id="btn-issue-new">+ 등록</button>
+        </div>
+      </section>
+
+      <div class="iss-subtabs" id="iss-modes" role="tablist" aria-label="일정 보기">
+        <button type="button" data-iss-mode="active" class="on" aria-pressed="true" role="tab">진행 중 <span class="iss-n" id="iss-mode-active-n">0</span></button>
+        <button type="button" data-iss-mode="done" aria-pressed="false" role="tab">완료 기록 <span class="iss-n" id="iss-mode-done-n">0</span></button>
+      </div>
+
+      <div id="iss-pane-active">
+        <div class="iss-quick">
+          <span class="iss-quick-k">빠른 등록</span>
+          <button type="button" class="ln-btn" data-iss-quick="고객예약">+ 고객예약</button>
+          <button type="button" class="ln-btn" data-iss-quick="금전">+ 금전</button>
+          <button type="button" class="ln-btn" data-iss-quick="법무">+ 법무</button>
+          <button type="button" class="ln-btn" data-iss-quick="기타">+ 일반</button>
+        </div>
+
+        <div class="ln-head">
+          <div class="ln-filters" id="iss-filters" role="group" aria-label="일정 필터">
+            <button type="button" class="ln-filter active" data-iss-filter="전체" aria-pressed="true">전체 <span class="ln-n">0</span></button>
+            <button type="button" class="ln-filter" data-iss-filter="오늘" aria-pressed="false">오늘 <span class="ln-n">0</span></button>
+            <button type="button" class="ln-filter" data-iss-filter="7일 이내" aria-pressed="false">7일 이내 <span class="ln-n">0</span></button>
+            <button type="button" class="ln-filter" data-iss-filter="고객예약" aria-pressed="false">고객예약 <span class="ln-n">0</span></button>
+            <button type="button" class="ln-filter" data-iss-filter="금전" aria-pressed="false">금전 <span class="ln-n">0</span></button>
+            <button type="button" class="ln-filter" data-iss-filter="법무" aria-pressed="false">법무 <span class="ln-n">0</span></button>
+            <button type="button" class="ln-filter" data-iss-filter="매장" aria-pressed="false">매장 <span class="ln-n">0</span></button>
+            <button type="button" class="ln-filter" data-iss-filter="세금·행정" aria-pressed="false">세금·행정 <span class="ln-n">0</span></button>
+            <button type="button" class="ln-filter" data-iss-filter="재고" aria-pressed="false">재고 <span class="ln-n">0</span></button>
+            <button type="button" class="ln-filter" data-iss-filter="기타" aria-pressed="false">기타 <span class="ln-n">0</span></button>
+          </div>
+        </div>
+
+        <ul class="ln-list" id="iss-list"></ul>
+        <div class="ln-empty" id="iss-empty" hidden>진행 중인 일정이 없습니다. <b>+ 등록</b>으로 첫 일정을 넣어 보세요.</div>
+        <p class="ln-foot" id="iss-foot"></p>
+      </div>
+
+      <div id="iss-pane-done" hidden>
+        <div class="iss-search-row">
+          <input type="search" id="iss-history-search" placeholder="제목·다음 행동·처리결과 검색" aria-label="완료 기록 검색" autocomplete="off" enterkeyhint="search">
+        </div>
+        <div class="ln-head">
+          <div class="ln-filters" id="iss-hist-filters" role="group" aria-label="완료 기록 분류">
+            <button type="button" class="ln-filter active" data-iss-hist-filter="전체" aria-pressed="true">전체</button>
+            <button type="button" class="ln-filter" data-iss-hist-filter="고객예약" aria-pressed="false">고객예약</button>
+            <button type="button" class="ln-filter" data-iss-hist-filter="금전" aria-pressed="false">금전</button>
+            <button type="button" class="ln-filter" data-iss-hist-filter="법무" aria-pressed="false">법무</button>
+            <button type="button" class="ln-filter" data-iss-hist-filter="매장" aria-pressed="false">매장</button>
+            <button type="button" class="ln-filter" data-iss-hist-filter="세금·행정" aria-pressed="false">세금·행정</button>
+            <button type="button" class="ln-filter" data-iss-hist-filter="재고" aria-pressed="false">재고</button>
+            <button type="button" class="ln-filter" data-iss-hist-filter="기타" aria-pressed="false">기타</button>
+          </div>
+        </div>
+        <div id="iss-history-list"></div>
+        <div class="ln-empty" id="iss-history-empty" hidden>조건에 맞는 완료 기록이 없습니다.</div>
+        <p class="ln-foot" id="iss-history-foot"></p>
+      </div>
     </div>
 
     <!-- 목록 -->
@@ -514,6 +581,85 @@
   </div>
 </div>
 
+<!-- 일정 등록·수정 (모달) -->
+<div class="ln-modal" id="issue-form-modal" hidden role="dialog" aria-modal="true" aria-labelledby="issue-form-title">
+  <div class="ln-sheet">
+    <div class="ln-sheet-head">
+      <div>
+        <h2 class="ln-sheet-title" id="issue-form-title">새 일정</h2>
+        <p class="ln-sheet-sub">러버블 일정·기록과 같은 DB(issues)에 저장됩니다.</p>
+      </div>
+      <button type="button" class="ln-x" data-iss-close aria-label="닫기">×</button>
+    </div>
+    <form class="ln-form" id="issue-form" data-cat="기타" data-status="대기" data-priority="보통">
+      <label class="ln-fld"><span>제목 *</span><input id="iss-f-title" maxlength="200" placeholder="예: 12월까지 PS구두정책" autocomplete="off"></label>
+      <div class="ln-fld">
+        <span>분류 *</span>
+        <div class="ln-seg" id="iss-f-cats">
+          <button type="button" data-iss-cat="고객예약" aria-pressed="false">고객예약</button>
+          <button type="button" data-iss-cat="금전" aria-pressed="false">금전</button>
+          <button type="button" data-iss-cat="법무" aria-pressed="false">법무</button>
+          <button type="button" data-iss-cat="매장" aria-pressed="false">매장</button>
+          <button type="button" data-iss-cat="세금·행정" aria-pressed="false">세금·행정</button>
+          <button type="button" data-iss-cat="재고" aria-pressed="false">재고</button>
+          <button type="button" data-iss-cat="기타" aria-pressed="false">기타</button>
+        </div>
+      </div>
+      <div class="ln-two">
+        <label class="ln-fld"><span>목표일</span><input type="date" id="iss-f-due"></label>
+        <label class="ln-fld"><span>예약일시</span><input type="datetime-local" id="iss-f-sched"></label>
+      </div>
+      <div class="ln-fld">
+        <span>현재상태</span>
+        <div class="ln-seg" id="iss-f-status">
+          <button type="button" data-iss-status="대기" aria-pressed="false">대기</button>
+          <button type="button" data-iss-status="진행중" aria-pressed="false">진행중</button>
+          <button type="button" data-iss-status="확인필요" aria-pressed="false">확인필요</button>
+          <button type="button" data-iss-status="완료" aria-pressed="false">완료</button>
+        </div>
+      </div>
+      <div class="ln-fld">
+        <span>중요도</span>
+        <div class="ln-seg" id="iss-f-priority">
+          <button type="button" data-iss-priority="높음" aria-pressed="false">높음</button>
+          <button type="button" data-iss-priority="보통" aria-pressed="false">보통</button>
+          <button type="button" data-iss-priority="낮음" aria-pressed="false">낮음</button>
+        </div>
+      </div>
+      <label class="ln-fld"><span>다음행동</span><input id="iss-f-next" maxlength="200" placeholder="예: 예약 후 검사" autocomplete="off"></label>
+      <label class="ln-fld"><span>관련금액</span><input id="iss-f-amount" inputmode="numeric" data-money placeholder="예: 30,000"></label>
+      <label class="ln-fld"><span>처리결과 <span class="ln-hint" id="iss-f-result-hint">(완료일 때 적습니다)</span></span><textarea id="iss-f-result" rows="2" maxlength="1000" placeholder="예: 개통완료"></textarea></label>
+      <p class="form-error" id="iss-form-error" hidden></p>
+      <div class="ln-sheet-foot">
+        <button type="button" class="ln-btn" data-iss-close>취소</button>
+        <button type="submit" class="ln-btn blue" id="btn-issue-save">저장</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- 일정 완료 처리 (모달) -->
+<div class="ln-modal" id="issue-complete-modal" hidden role="dialog" aria-modal="true" aria-labelledby="issue-complete-title">
+  <div class="ln-sheet">
+    <div class="ln-sheet-head">
+      <div>
+        <h2 class="ln-sheet-title" id="issue-complete-title">완료 처리</h2>
+        <p class="ln-sheet-sub">상태를 <b>완료</b>로 바꾸고 <b>완료 기록</b>으로 옮깁니다.</p>
+      </div>
+      <button type="button" class="ln-x" data-iss-close aria-label="닫기">×</button>
+    </div>
+    <form class="ln-form" id="issue-complete-form">
+      <input type="hidden" id="iss-c-id">
+      <label class="ln-fld"><span>처리결과 (선택)</span><textarea id="iss-c-note" rows="3" maxlength="1000" placeholder="예: 개통완료"></textarea></label>
+      <p class="form-error" id="iss-complete-error" hidden></p>
+      <div class="ln-sheet-foot">
+        <button type="button" class="ln-btn" data-iss-close>취소</button>
+        <button type="submit" class="ln-btn warn" id="btn-issue-complete">완료 처리</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <footer class="site-foot">
   <span>예스통신 · 이종훈 전용 비공개 게시판</span>
 </footer>
@@ -521,6 +667,6 @@
 <div class="toast" id="toast" hidden></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="app.js?v=20261128-10"></script>
+<script src="app.js?v=20261128-11"></script>
 </body>
 </html>

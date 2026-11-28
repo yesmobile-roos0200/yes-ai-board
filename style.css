@@ -519,10 +519,10 @@ pre{margin:0;white-space:pre-wrap;word-break:break-word}
 
 /* 모바일 */
 @media (max-width:720px){
-  /* 탭: 주요 화면 2개 한 줄 + 말머리 6개 3열×2줄 (2026-11-28 — 대시보드 탭 삭제) */
+  /* 탭: 주요 화면 4개 한 줄 + 말머리 6개 3열×2줄 (2026-11-28 — 일정 탭 추가) */
   .tabbar{flex-direction:column}
-  .tabs-main{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));overflow:visible;border-left:0;margin-left:0;padding-left:0}
-  .tabs-main .tab{padding:11px 6px 10px;font-size:14px;text-align:center;justify-content:center}
+  .tabs-main{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));overflow:visible;border-left:0;margin-left:0;padding-left:0}
+  .tabs-main .tab{padding:11px 4px 10px;font-size:13.4px;text-align:center;justify-content:center}
   .tabs-cats{
     display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;
     overflow:visible;border-left:0;margin-left:0;padding:0;
@@ -858,4 +858,78 @@ body.modal-open{overflow:hidden}
   .ln-seg button{height:38px;font-size:13.5px}
   .ln-btn{height:32px;font-size:12.4px}
   .ln-sheet-foot .ln-btn{height:40px;font-size:14px}
+}
+
+/* ===== 일정 (#/issues) — 2026-11-28 러버블 yescom-game-hq /missions·/history(issues) 통합 ===== */
+.tab-iss{font-weight:700}
+.iss-summary{align-items:center}
+.iss-sum-add{margin-left:auto;padding-left:13px;border-left:1px solid var(--line-soft);align-items:flex-end;justify-content:center}
+.iss-sum-add .btn{height:32px!important}
+
+.iss-subtabs{display:flex;gap:2px;border-bottom:1px solid var(--line);margin:0 0 10px}
+.iss-subtabs button{
+  display:inline-flex;align-items:center;gap:5px;margin-bottom:-1px;padding:9px 14px;
+  border:0;border-bottom:2px solid transparent;background:none;font-family:inherit;
+  font-size:13.5px;font-weight:700;color:var(--muted);cursor:pointer;
+}
+.iss-subtabs button:hover{color:var(--ink-2)}
+.iss-subtabs button.on{color:var(--accent);border-bottom-color:var(--accent)}
+.iss-n{font-size:11.6px;font-weight:700;color:#98a1b2;font-variant-numeric:tabular-nums}
+.iss-subtabs button.on .iss-n{color:var(--accent)}
+
+.iss-quick{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:0 0 9px}
+.iss-quick-k{font-size:11.6px;font-weight:700;color:#98a1b2;letter-spacing:.02em;margin-right:2px}
+.iss-quick .ln-btn{background:#fff}
+
+.iss-search-row{margin:0 0 8px}
+.iss-search-row input{
+  width:100%;height:36px;border:1px solid var(--line);border-radius:9px;background:#fff;
+  padding:0 12px;font-family:inherit;font-size:13.5px;color:var(--ink);
+}
+.iss-search-row input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(37,99,235,.1)}
+
+.iss-chips{display:flex;align-items:center;gap:5px;min-width:0;flex-wrap:wrap}
+.ic-chip{font-size:10.8px;font-weight:700;line-height:1.3;padding:3px 7px;border-radius:6px;background:#f1f3f8;color:#5a6272;white-space:nowrap}
+.ic-reserve{background:#fdeeea;color:#c1502a}
+.ic-money{background:#e8f6ee;color:#1f7a4c}
+.ic-legal{background:#f1ecfd;color:#6b45c9}
+.ic-store{background:#eaf0fd;color:#2257c9}
+.ic-tax{background:#e6f4f8;color:#16657d}
+.ic-stock{background:#fff4e0;color:#8a5a00}
+.ic-etc{background:#f1f3f8;color:#5a6272}
+.iss-st{font-size:10.8px;font-weight:700;padding:3px 7px;border-radius:6px;background:#f4f5f8;color:#6b7280;white-space:nowrap;line-height:1.3}
+.iss-st.is-doing{background:#eaf0fd;color:#2257c9}
+.iss-st.is-check{background:#fff4e8;color:#b4570f}
+.iss-st.is-done{background:#e8f6ee;color:#1f7a4c}
+.iss-pr{font-size:10.8px;font-weight:700;padding:3px 7px;border-radius:6px;background:#f7f8fb;color:#8a93a5;white-space:nowrap;line-height:1.3}
+.iss-pr.is-high{background:#fdeeea;color:#c1502a}
+.iss-pr.is-low{color:#a4acbc}
+
+.iss-title{margin:7px 0 0;font-size:14.6px;font-weight:700;color:var(--ink);line-height:1.45;letter-spacing:-.2px;word-break:break-word;overflow-wrap:anywhere}
+.iss-when{margin-top:5px;display:flex;align-items:center;gap:7px;flex-wrap:wrap;font-size:11.9px;color:var(--muted);font-variant-numeric:tabular-nums}
+.iss-when .iss-due{font-weight:700;color:#5b6476}
+.iss-amount{font-weight:700;color:#1f7a4c}
+.iss-next{margin-top:5px;font-size:12.6px;color:#5b6476;line-height:1.5;word-break:break-word;overflow-wrap:anywhere}
+.iss-next::before{content:"→ ";color:#98a1b2;font-weight:700}
+.iss-actions{display:flex;gap:6px;margin-top:9px}
+.iss-actions .ln-btn{background:#fff}
+
+.iss-hist-group{margin-bottom:16px}
+.iss-hist-group:last-child{margin-bottom:0}
+.iss-hist-month{display:flex;align-items:center;gap:8px;margin:0 0 8px;padding:0 2px;font-size:12.8px;font-weight:700;color:#5f6879}
+.iss-hist-month::after{content:"";flex:1 1 auto;height:1px;background:var(--line-soft)}
+.iss-result{margin-top:7px;background:#f7f8fb;border:1px solid var(--line-soft);border-radius:8px;padding:8px 10px;font-size:12.6px;color:#414a5a;line-height:1.55;white-space:pre-wrap;word-break:break-word;overflow-wrap:anywhere}
+.iss-result-k{display:block;font-size:10.6px;font-weight:700;color:#98a1b2;letter-spacing:.05em;margin-bottom:3px}
+
+@media (max-width:720px){
+  .iss-sum-add{padding-left:9px}
+  .iss-subtabs button{padding:9px 11px;font-size:13px}
+  .iss-quick{gap:5px;margin-bottom:8px}
+  .iss-quick-k{flex:1 1 100%;margin:0 0 1px}
+  .iss-quick .ln-btn{flex:1 1 calc(50% - 3px);height:32px}
+  .iss-search-row input{font-size:16px}
+  .iss-title{font-size:15.4px}
+  .iss-hist-month{padding:0 12px;margin:0 0 6px}
+  .iss-hist-group{margin-bottom:12px}
+  .iss-result{margin-top:8px}
 }
