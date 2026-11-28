@@ -50,24 +50,35 @@
      2026-11-27 Claude 보완: 개발·앱 칸 앱별 최신 배포, ③과 중복 제외, 빈 칸 한 줄 접기, 모바일 영역 칸 가로 넘김.
      2026-11-27 Claude 2단계: 상태·중요도·담당·기한 칸(DB) 연결. 칸이 비어 있으면 1단계 규칙 그대로. */
   const TODO_TAGS = ['[결정필요]', '[긴급]', '[오류]', '[일정]'];
-  /* ① 주요 · 최신 글 (2026-11-28 개편) — 예전 '지금 처리할 일'은 상태·태그가 비어 늘 0건이었다.
-     지금은 중요도 높은 미완료 글을 먼저(최대 3개) + 최근 작성·수정 글을 채워 최대 5개를 보여 준다. */
+  /* ① 주요 · 최신 글 (2026-11-29 개편) — 결정필요·담당 종훈 미완료 글을 상단에, 나머지는 최근 미완료·활성 글로 최대 5개. */
   const KEY_POST_LIMIT = 5;
-  const KEY_IMPORTANT_LIMIT = 3;
+  const KEY_DEV_LIMIT = 2;                      // ① 개발·앱 쏠림 방지 — 전체 5건 중 최대 2건
   const RULE_POST_ID = 6;                       // 게시판 이용 규칙 글
   const RULE_TAGS = ['[확정 규칙]', '[공지]'];
   const AREA_DEFS = [
     { key: '고객예약', label: '고객·예약', cls: 'area-reserve' },
+    { key: '사입·택배', label: '사입·택배', cls: 'area-ship' },
     { key: '개발·앱', label: '개발·앱', cls: 'area-dev', compact: true },
     { key: '업무', label: '매장·업무', cls: 'area-work' },
-    { key: '세무·정산', label: '세무·정산', cls: 'area-tax' }
+    { key: '세무·정산', label: '세무·정산', cls: 'area-tax' },
+    { key: '결산·자료', label: '결산·자료', cls: 'area-archive' }
   ];
   const AREA_EXTRA_LINK = {
     '고객예약': { href: 'https://app.notion.com/p/4182ce9e3d8f816fbc3dd82e7898aefb', label: '고객관리 원본' }
   };
   /* 2단계(2026-11-27): 상태·중요도·담당·기한 칸. 모두 비워도 되고, 비어 있으면 1단계 규칙(제목 태그 + 완료: 댓글)으로 판정 */
-  const STATUSES = ['진행', '결정필요', '보류', '완료'];
-  const STATUS_CLASS = { '진행': 'st-doing', '결정필요': 'st-decide', '보류': 'st-hold', '완료': 'st-done' };
+  /* 2026-11-29 종훈 님 승인: 운영 규칙(#6 규칙 13)과 상태값을 맞춰 `검수대기`를 정식 추가. `보류`는 그대로 둔다. */
+  const STATUSES = ['진행', '검수대기', '결정필요', '보류', '완료'];
+  const STATUS_CLASS = { '진행': 'st-doing', '검수대기': 'st-review', '결정필요': 'st-decide', '보류': 'st-hold', '완료': 'st-done' };
+  /* #/list 빠른 필터 — 상태 4종 + 담당(종훈). 값은 DB 컬럼 값과 그대로 맞춘다. */
+  const LIST_FILTERS = [
+    { key: 'all', label: '전체' },
+    { key: '결정필요', label: '결정필요' },
+    { key: '진행', label: '진행' },
+    { key: '검수대기', label: '검수대기' },
+    { key: '완료', label: '완료' },
+    { key: 'owner:종훈', label: '종훈 담당' }
+  ];
   const PRIORITY_LABEL = { 1: '중요도 1', 2: '중요도 2', 3: '중요도 3' };
   const DUE_SOON_DAYS = 7;
 
@@ -140,6 +151,7 @@
     category: ALL,
     q: '',
     page: 1,
+    listFilter: 'all',   // #/list 빠른 상태·담당 필터 (2026-11-29)
     total: 0,
     posts: [],
     loaded: false,
@@ -282,28 +294,8 @@
     return t.length > n ? t.slice(0, n - 1).trim() + '…' : t;
   }
 
-  /* 고객·예약 칸 개인정보 마스킹 — 이름·전화번호가 그대로 보이지 않게 한다.
-     · 010-1234-5678 → 010-****-5678
-     · 홍길동 님 → 홍*동 님 / 남궁민수 님 → 남**수 님 (직함 '고객님·사장님' 등은 건드리지 않음)
-     · 예약자/성함/고객명/이름 뒤의 이름 → 첫 글자만 남기고 가림 */
-  const ROLE_NIM = ['고객님', '사장님', '선생님', '기사님', '대표님', '원장님', '점장님', '실장님', '팀장님', '부장님', '과장님', '사모님', '어머님', '아버님', '주인님', '형님', '누님', '사장', '고객'];
-  function maskNameToken(name) {
-    if (name.length <= 2) return name.slice(0, 1) + '*';
-    return name.slice(0, 1) + '*'.repeat(name.length - 2) + name.slice(-1);
-  }
-
-  function maskNames(s) {
-    let out = String(s == null ? '' : s);
-    out = out.replace(/(01[016789])[-\s]?(\d{3,4})[-\s]?(\d{4})/g, '$1-****-$3');
-    out = out.replace(/([가-힣]{2,4})(?=\s*님)/g, (full) => (ROLE_NIM.includes(full) ? full : maskNameToken(full)));
-    out = out.replace(/((?:예약자|성함|고객명|이름)\s*[:：]?\s*)([가-힣]{2,4})/g, (full, head, name) =>
-      ROLE_NIM.includes(name) ? full : head + maskNameToken(name));
-    return out;
-  }
-
-  function maskPII(s) {
-    return maskNames(s);
-  }
+  /* 고객·예약 개인정보는 2026-11-29부터 가리지 않는다 — #/list와 같은 기준으로 실명·번호를 그대로 보여 준다.
+     (예전 maskPII/maskNames는 git 기록에 남아 있다.) */
 
   function catChip(cat) {
     const cls = CAT_CLASS[cat] || 'cat-etc';
@@ -322,9 +314,36 @@
       .replace(/\[([^\]\n]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
   }
 
+  /* GFM 표 헬퍼 (2026-11-29 추가) — `| 가 | 나 |` 머리줄 + `| --- | :--: |` 구분선을 읽는다. */
+  function isMdTableRow(line) {
+    return typeof line === 'string' && line.includes('|') && line.trim() !== '';
+  }
+  function isMdTableSep(line) {
+    const s = String(line == null ? '' : line).trim();
+    if (!s.includes('|') || !s.includes('-') || !/^[\s|:-]+$/.test(s)) return false;
+    const cells = s.replace(/^\|/, '').replace(/\|$/, '').split('|');
+    return cells.length > 0 && cells.every((c) => /^\s*:?-{1,}:?\s*$/.test(c));
+  }
+  function mdTableCells(line) {
+    let s = String(line == null ? '' : line).trim();
+    if (s.startsWith('|')) s = s.slice(1);
+    if (s.endsWith('|') && !s.endsWith('\\|')) s = s.slice(0, -1);
+    const cells = [];
+    let buf = '';
+    for (let k = 0; k < s.length; k++) {
+      const ch = s[k];
+      if (ch === '\\' && s[k + 1] === '|') { buf += '|'; k += 1; continue; }
+      if (ch === '|') { cells.push(buf); buf = ''; continue; }
+      buf += ch;
+    }
+    cells.push(buf);
+    return cells.map((c) => c.trim());
+  }
+
   /* 본문 렌더러 — AI들이 쓰는 마크다운 문법을 그대로 살린다.
      지원: 문단·줄바꿈, **굵게**, `코드`, [링크](https://...), - 글머리 목록,
-           1. 순서 목록, ### / ## / # 소제목, > 인용구, --- 구분선, ``` 코드블록
+           1. 순서 목록, ### / ## / # 소제목, > 인용구, --- 구분선, ``` 코드블록,
+           GFM 파이프 표(`| 머리 |` + `| --- |`) — 2026-11-29 추가
      보안: 모든 텍스트는 esc()로 먼저 이스케이프한 뒤 인라인 문법만 적용한다(HTML 주입 불가). */
   function renderBody(text) {
     const src = String(text == null ? '' : text).replace(/\r\n?/g, '\n');
@@ -353,6 +372,32 @@
         while (i < lines.length && !/^\s*```/.test(lines[i])) { buf.push(lines[i]); i += 1; }
         const cls = /^[a-z0-9+#-]+$/.test(lang) ? ` class="lang-${lang}"` : '';
         out.push(`<pre><code${cls}>${esc(buf.join('\n'))}</code></pre>`);
+        continue;
+      }
+
+      // GFM 표 — 머리줄 + 구분선(| --- | :--: |) + 본문 줄들. 모바일에서도 넘치지 않게 가로 스크롤 래퍼로 감싼다.
+      if (isMdTableRow(line) && i + 1 < lines.length && isMdTableSep(lines[i + 1])) {
+        flushAll();
+        const head = mdTableCells(line);
+        const aligns = mdTableCells(lines[i + 1]).map((c) => {
+          const l = c.startsWith(':'), r = c.endsWith(':');
+          return l && r ? 'center' : r ? 'right' : l ? 'left' : '';
+        });
+        i += 2;
+        const rows = [];
+        while (i < lines.length && isMdTableRow(lines[i]) && !isMdTableSep(lines[i]) && !/^\s*```/.test(lines[i])) {
+          rows.push(mdTableCells(lines[i]));
+          i += 1;
+        }
+        i -= 1;
+        const total = Math.max(head.length, ...rows.map((r) => r.length));
+        const cell = (tag, text, k) => {
+          const al = aligns[k] ? ` class="ta-${aligns[k]}"` : '';
+          return `<${tag}${al}>${inlineMd(esc(text == null ? '' : text))}</${tag}>`;
+        };
+        const headHtml = Array.from({ length: total }, (_, k) => cell('th', head[k], k)).join('');
+        const bodyHtml = rows.map((r) => `<tr>${Array.from({ length: total }, (_, k) => cell('td', r[k], k)).join('')}</tr>`).join('');
+        out.push(`<div class="md-table-wrap"><table class="md-table"><thead><tr>${headHtml}</tr></thead>${bodyHtml ? `<tbody>${bodyHtml}</tbody>` : ''}</table></div>`);
         continue;
       }
 
@@ -513,7 +558,7 @@
       if (state.q) return `검색 · ${state.q}`;
       return state.category === ALL ? '전체 글' : state.category;
     }
-    if (state.view === 'archive') return '결산·자료실';
+    if (state.view === 'archive') return '자료실';
     if (state.view === 'lines') return '회선';
     if (state.view === 'issues') return '일정';
     if (state.view === 'detail') return '글 읽기';
@@ -654,7 +699,7 @@
     /* 2026-11-28 펨코 스타일: 윗줄 = 큰 기능(진한 강조 칩), 아랫줄 = 말머리(연한 테두리 칩) — 2026-11-29 테라코타 */
     const mainParts = [
       { key: 'all', label: '전체 글', on: listOn },
-      { key: 'archive', label: '결산·자료실', on: archOn },
+      { key: 'archive', label: '자료실', on: archOn },
       { key: 'lines', label: '회선', on: linesOn },
       { key: 'issues', label: '일정', on: issOn }
     ].map((d) => `<button type="button" class="chip chip-main${d.on ? ' on' : ''}" data-nav="${d.key}" aria-pressed="${d.on}">${d.label}</button>`);
@@ -725,14 +770,18 @@
   }
 
   async function loadPosts() {
-    const key = `${state.category}|${state.q}|${state.page}`;
+    const key = `${state.category}|${state.q}|${state.page}|${state.listFilter}`;
     state.listKey = key;
     $('#post-rows').innerHTML = `<tr><td colspan="5" class="empty">불러오는 중…</td></tr>`;
     $('#list-empty').hidden = true;
+    syncListFilters();
 
     let query = db.from('ai_board_posts')
       .select('id,category,author,title,is_pinned,created_at,user_id,status,priority,owner,due_date', { count: 'exact' });
     if (state.category !== ALL) query = query.eq('category', state.category);
+    /* 상태·담당 빠른 필터 — 담당은 `owner:종훈` 형태 */
+    if (state.listFilter.startsWith('owner:')) query = query.eq('owner', state.listFilter.slice(6));
+    else if (state.listFilter && state.listFilter !== 'all') query = query.eq('status', state.listFilter);
     const term = sanitizeTerm(state.q);
     if (term) query = query.or(`title.ilike.*${term}*,content.ilike.*${term}*`);
     query = query
@@ -789,17 +838,38 @@
     if (!state.posts.length) {
       $('#list-empty').textContent = term
         ? `'${term}' 검색 결과가 없습니다.`
-        : '글이 없습니다. 첫 글을 남겨 보세요.';
+        : (state.listFilter !== 'all' ? '골라 둔 상태·담당에 해당하는 글이 없습니다.' : '글이 없습니다. 첫 글을 남겨 보세요.');
     }
     renderPager();
     buildTabs();
   }
 
+  /* #/list 빠른 필터 칩 상태 표시 */
+  function syncListFilters() {
+    $$('#list-filters .list-filter').forEach((b) => {
+      const on = (b.dataset.lf || 'all') === state.listFilter;
+      b.classList.toggle('on', on);
+      b.setAttribute('aria-pressed', String(on));
+    });
+  }
+
+  function setListFilter(key) {
+    const valid = LIST_FILTERS.some((f) => f.key === key) ? key : 'all';
+    if (valid === state.listFilter) return;
+    state.listFilter = valid;
+    state.page = 1;
+    syncListFilters();
+    if (state.view !== 'list') showView('list');
+    loadPosts();
+  }
+
   function renderBoardTitle(term) {
     if (!term) term = sanitizeTerm(state.q);
+    const f = LIST_FILTERS.find((x) => x.key === state.listFilter);
+    const prefix = f && f.key !== 'all' ? `${esc(f.label)} · ` : '';
     $('#board-title').innerHTML = term
       ? `‘${esc(term)}’ 검색 <b>${state.total}</b>건`
-      : `<b>${state.total}</b>건`;
+      : `${prefix}<b>${state.total}</b>건`;
   }
 
   async function fetchCommentCounts(ids) {    const map = new Map();
@@ -904,8 +974,7 @@
   }
 
   function dashTitle(p) {
-    const t = stripTag(p.title);
-    return p.category === '고객예약' ? maskPII(t) : t;
+    return stripTag(p.title);
   }
 
   /* 글의 기준 시각 — 작성(created_at)과 수정(updated_at) 중 더 최근 것 */
@@ -916,30 +985,41 @@
   }
 
   /* ① 주요 · 최신 글 선정 — ③ 확정 기준 보관함에 이미 있는 글(6번 규칙·[공지]·[확정 규칙])은 중복이라 뺀다.
-     1순위) 완료되지 않은 중요 글: 중요도 1 · 상태 결정필요/진행 · 제목 [긴급]·[결정필요]·[오류]·[일정]
-     2순위) 나머지는 최근 작성·수정 순(완료 글도 자리가 남으면 들어간다). */
+     2026-11-29 종훈 님 승인 개편:
+     1순위) 상태 `결정필요` 또는 담당 `종훈`인 미완료 글 — 최우선 상단.
+     2순위) 나머지 슬롯은 최근 미완료·활성 글로 채우고, 그래도 자리가 남으면 완료 글.
+     `개발·앱`은 5건 중 최대 KEY_DEV_LIMIT(2)건까지만 — 고객예약·사입·택배·업무·세무가 묻히지 않게. */
   function pickKeyPosts(posts, byPost) {
     const isRulePost = (p) => p.id === RULE_POST_ID || RULE_TAGS.some((t) => String(p.title).includes(t));
     const isDone = (p) => p.status === '완료' || isDonePost(byPost.get(p.id));
     const pool = posts.filter((p) => !isRulePost(p) && p.status !== '보류');
+    const open = pool.filter((p) => !isDone(p));
 
-    const important = pool.filter((p) => !isDone(p) && (
-      Number(p.priority) === 1 ||
-      p.status === '결정필요' || p.status === '진행' ||
-      TODO_TAGS.includes(titleTag(p.title))
-    ));
-    important.sort((a, b) => (Number(a.priority) || 9) - (Number(b.priority) || 9) || postStamp(b) - postStamp(a));
-
-    const newest = pool.slice().sort((a, b) => postStamp(b) - postStamp(a));
     const picked = [];
     const seen = new Set();
+    let devCount = 0;
     const push = (p) => {
-      if (!p || seen.has(p.id) || picked.length >= KEY_POST_LIMIT) return;
+      if (!p || seen.has(p.id) || picked.length >= KEY_POST_LIMIT) return false;
+      if (p.category === '개발·앱' && devCount >= KEY_DEV_LIMIT) return false;
       seen.add(p.id);
       picked.push(p);
+      if (p.category === '개발·앱') devCount += 1;
+      return true;
     };
-    important.slice(0, KEY_IMPORTANT_LIMIT).forEach(push);
-    newest.forEach(push);
+
+    /* 1순위 — 내가 처리해야 하는 미완료 글 (중요도 높은 순 → 최신 순) */
+    const needMe = open.filter((p) => p.status === '결정필요' || p.owner === '종훈');
+    needMe.sort((a, b) => (Number(a.priority) || 9) - (Number(b.priority) || 9) || postStamp(b) - postStamp(a));
+    needMe.forEach(push);
+
+    /* 2순위 — 최근 미완료·활성 글 */
+    const recentOpen = open.slice().sort((a, b) => postStamp(b) - postStamp(a));
+    recentOpen.forEach(push);
+
+    /* 3순위 — 그래도 자리가 남으면 최근 완료 글 */
+    const recentAll = pool.slice().sort((a, b) => postStamp(b) - postStamp(a));
+    recentAll.forEach(push);
+
     return picked;
   }
 
@@ -994,7 +1074,7 @@
     };
     const DEPLOY_TAG_RE = /^\s*\[배포( 공유)?\]/;
     const grid = $('#dash-area-grid');
-    grid.style.setProperty('--area-cols', String(Math.max(1, filledAreas.length)));
+    grid.style.setProperty('--area-cols', String(Math.min(4, Math.max(1, filledAreas.length))));
     grid.innerHTML = filledAreas.map(({ a, all, list }) => {
       const extra = DEMO ? null : AREA_EXTRA_LINK[a.key]; /* 데모에서는 실제 노션 '고객관리 원본' 링크를 숨긴다 */
       const head = `<header class="area-head">
@@ -1079,8 +1159,8 @@
     if (newest && !DEMO) localStorage.setItem(ACT_SEEN_KEY, String(newest)); /* 체험용 데모는 방문자의 실제 게시판 기억을 건드리지 않는다 */
 
     const actHtml = (t) => {
-      /* 요약 줄 마스킹: 고객예약은 이름·전화번호, 그 외 말머리는 전화번호만 */
-      const mask = (s) => (t.p.category === '고객예약' ? maskPII(s) : String(s).replace(/(01[016789])[-. ]?(\d{3,4})[-. ]?(\d{4})/g, '$1-****-$3'));
+      /* 2026-11-29: 대시보드도 실명·번호를 가리지 않는다 (#/list와 동일 기준). */
+      const mask = (s) => String(s == null ? '' : s);
       const lastMs = new Date(t.last).getTime();
       const isNew = seenBase > 0 && lastMs > seenBase;
       const postIsNew = seenBase > 0 ? new Date(t.p.created_at).getTime() > seenBase : t.cmts.length === 0;
@@ -1251,7 +1331,7 @@
         <ul class="arch-rows">${arr.map((p) => {
           const k = kindOf(p);
           const cc = counts.get(p.id) || 0;
-          const title = p.category === '고객예약' ? maskPII(p.title) : p.title;
+          const title = p.title;
           return `<li class="arch-item"><a class="arch-link" href="#/p/${p.id}">
             <span class="arch-kind kind-${k.key}">${esc(k.short)}</span>
             <span class="arch-title">${p.is_pinned ? '📌 ' : ''}${esc(title)}</span>
@@ -2919,6 +2999,7 @@
     state.category = ALL;
     state.q = term;
     state.page = 1;
+    state.listFilter = 'all';
     buildTabs();
     if (location.hash === target) {
       showView('list');
@@ -2933,6 +3014,7 @@
     state.category = CATEGORIES.includes(cat) ? cat : ALL;
     state.page = 1;
     state.q = '';
+    state.listFilter = 'all';
     buildTabs();
     if (state.view !== 'list') showView('list');
     syncTopSearch();
@@ -3000,6 +3082,7 @@
       state.category = ALL;
       state.q = q;
       state.page = 1;
+      state.listFilter = 'all';
       buildTabs();
       showView('list');
       await loadPosts();
@@ -3156,6 +3239,16 @@
       state.archFilter = key;
       renderArchive();
     });
+
+    /* 목록(#/list) 상태·담당 빠른 필터 (2026-11-29) */
+    const lf = $('#list-filters');
+    if (lf) {
+      lf.addEventListener('click', (e) => {
+        const btn = e.target.closest('.list-filter');
+        if (!btn) return;
+        setListFilter(btn.dataset.lf || 'all');
+      });
+    }
 
     /* 대시보드 토글 · 새로고침 */
     $('#dash-personal-toggle').addEventListener('click', () => {
