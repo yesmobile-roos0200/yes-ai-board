@@ -798,7 +798,8 @@ body.modal-open{overflow:hidden}
   white-space:nowrap;display:inline-flex;align-items:baseline;gap:5px;
 }
 .ln-fee-sub{font-size:11.2px;font-weight:600;color:#8d98ab}
-.ln-dates{margin-top:7px;display:flex;gap:6px;flex-wrap:wrap}
+.ln-item-foot{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:7px}
+.ln-dates{display:flex;gap:6px;flex-wrap:wrap;min-width:0}
 .ln-date{
   font-size:11.6px;color:#4f5a6d;background:#f6f7fa;border:1px solid var(--line-soft);
   border-radius:6px;padding:2px 7px;font-variant-numeric:tabular-nums;white-space:nowrap;
@@ -922,7 +923,8 @@ body.modal-open{overflow:hidden}
   .ln-item{padding:13px 12px}
   .ln-name{font-size:15.6px}
   .ln-item-meta{gap:5px;margin-top:7px}
-  .ln-fee{margin-left:0;flex:1 1 100%;margin-top:2px}
+  .ln-item-foot{gap:6px;margin-top:8px}
+  .ln-fee{margin-left:0;font-size:12.8px}
   .ln-modal{padding:10px 8px 18px}
   .ln-sheet{max-width:none;border-radius:12px;padding:14px 13px 16px}
   .ln-sheet-title{font-size:16px}

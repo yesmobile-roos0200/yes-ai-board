@@ -1526,9 +1526,11 @@
         <span class="ln-tag is-state">${esc(lineStatusLabel(l))}</span>
         ${provider ? `<span class="ln-tag is-net">${esc(provider)}</span>` : ''}
         ${sub ? `<span class="ln-sub">${esc(sub)}</span>` : ''}
+      </div>
+      <div class="ln-item-foot">
+        ${dates.length ? `<div class="ln-dates">${dates.slice(0, 2).map((d) => `<span class="ln-date ${d.diff != null ? ddayClass(d.diff) : ''}">${esc(d.label)} ${esc(fmtDot(d.date))}</span>`).join('')}</div>` : ''}
         <span class="ln-fee">월 ${esc(won(fee))}${addonFee ? `<span class="ln-fee-sub">부가 ${esc(won(addonFee))}</span>` : ''}</span>
       </div>
-      ${dates.length ? `<div class="ln-dates">${dates.slice(0, 2).map((d) => `<span class="ln-date ${d.diff != null ? ddayClass(d.diff) : ''}">${esc(d.label)} ${esc(fmtDot(d.date))}</span>`).join('')}</div>` : ''}
     </li>`;
   }
 
