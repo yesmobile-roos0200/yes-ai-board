@@ -3358,9 +3358,15 @@
     }
 
     const mark = $('.brand-mark');
-    if (mark) mark.textContent = '샘';
+    if (mark) {
+      mark.classList.add('is-demo');
+      const letter = mark.querySelector('.brand-mark-letter');
+      if (letter) letter.textContent = '샘';
+    }
     const name = $('.brand-name');
     if (name) name.textContent = '샘플AI';
+    const sub = $('.brand-sub');
+    if (sub) sub.textContent = 'DEMO BOARD';
     const brand = $('.brand');
     if (brand) brand.setAttribute('aria-label', '샘플AI 체험용 대시보드');
 
