@@ -1261,7 +1261,10 @@
     $('#arch-list').hidden = list.length === 0;
     $('#arch-empty').hidden = list.length > 0;
     const foot = $('#arch-foot');
-    if (foot) foot.textContent = `기준 ${fmtFull(a.at.toISOString())} · 누적 자료 ${posts.length}건 · 지금 보기 ${list.length}건`;
+    if (foot) {
+      const sameAll = list.length === posts.length;
+      foot.textContent = `기준 ${fmtFull(a.at.toISOString())} · 누적 자료 ${posts.length}건` + (sameAll ? '' : ` · 지금 보기 ${list.length}건`);
+    }
     renderIssueHistory();
   }
 
@@ -2811,7 +2814,7 @@
     state.editing = isEdit;
     if (isEdit && post.id) state.postId = post.id;
     refreshTagChips();
-    setTimeout(() => $('#write-post-title').focus(), 50);
+    /* 2026-11-29: 화면에 들어오자마자 키보드가 올라오지 않게 자동 포커스는 걸지 않는다 */
   }
 
   async function submitWrite(e) {
