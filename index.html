@@ -6,7 +6,7 @@
 <title>예스AI 공용 게시판</title>
 <meta name="robots" content="noindex, nofollow">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%232563eb'/%3E%3Ctext x='32' y='44' font-size='34' font-family='sans-serif' font-weight='700' fill='white' text-anchor='middle'%3EY%3C/text%3E%3C/svg%3E">
-<link rel="stylesheet" href="style.css?v=20261128-19">
+<link rel="stylesheet" href="style.css?v=20261128-20">
 </head>
 <body>
 
@@ -253,11 +253,24 @@
     <!-- 회선 관리 (#/lines) — 2026-11-28 러버블 yescom-game-hq /lines 통합 (lines·line_addons) -->
     <div id="view-lines" hidden>
       <section class="ln-summary" id="ln-summary" aria-label="회선 요약">
-        <div class="ln-sum-item"><span class="ln-sum-k">활성</span><b class="ln-sum-v" id="ln-sum-active">0</b></div>
-        <div class="ln-sum-item"><span class="ln-sum-k">약정</span><b class="ln-sum-v" id="ln-sum-contract">0</b></div>
-        <div class="ln-sum-item"><span class="ln-sum-k">가개통</span><b class="ln-sum-v" id="ln-sum-prepaid">0</b></div>
-        <div class="ln-sum-item"><span class="ln-sum-k">30일 내</span><b class="ln-sum-v" id="ln-sum-soon">0</b></div>
-        <div class="ln-sum-total"><span class="ln-sum-k">월 총 유지비</span><b class="ln-sum-v" id="ln-sum-total">0원</b><span class="ln-sum-sub" id="ln-sum-split">회선 0원 · 부가 0원</span></div>
+        <header class="ln-sum-head">
+          <h2 class="ln-sum-title">회선 현황</h2>
+          <span class="ln-sum-cap">만기·변경일 임박 순</span>
+          <button type="button" class="btn btn-primary btn-sm ln-add" id="btn-line-new">+ 등록</button>
+        </header>
+        <div class="ln-sum-body">
+          <div class="ln-sum-stats">
+            <div class="ln-sum-item"><span class="ln-sum-k">활성</span><b class="ln-sum-v" id="ln-sum-active">0</b></div>
+            <div class="ln-sum-item"><span class="ln-sum-k">약정</span><b class="ln-sum-v" id="ln-sum-contract">0</b></div>
+            <div class="ln-sum-item"><span class="ln-sum-k">가개통</span><b class="ln-sum-v" id="ln-sum-prepaid">0</b></div>
+            <div class="ln-sum-item"><span class="ln-sum-k">30일 내</span><b class="ln-sum-v" id="ln-sum-soon">0</b></div>
+          </div>
+          <div class="ln-sum-total">
+            <span class="ln-sum-k">월 총 유지비</span>
+            <b class="ln-sum-v" id="ln-sum-total">0원</b>
+            <span class="ln-sum-sub" id="ln-sum-split">회선 0원 · 부가 0원</span>
+          </div>
+        </div>
       </section>
 
       <div class="ln-head">
@@ -267,7 +280,6 @@
           <button type="button" class="ln-filter" data-ln-filter="가개통" aria-pressed="false">가개통 <span class="ln-n">0</span></button>
           <button type="button" class="ln-filter" data-ln-filter="완료" aria-pressed="false">완료 <span class="ln-n">0</span></button>
         </div>
-        <button type="button" class="btn btn-primary btn-sm ln-add" id="btn-line-new">+ 등록</button>
       </div>
 
       <ul class="ln-list" id="ln-list"></ul>
@@ -278,15 +290,24 @@
     <!-- 일정 (#/issues) — 2026-11-28 러버블 yescom-game-hq /missions·/history 의 2순위 장기 일정(issues) 통합 -->
     <div id="view-issues" hidden>
       <section class="ln-summary iss-summary" aria-label="일정 요약">
-        <div class="ln-sum-item"><span class="ln-sum-k">7일 이내</span><b class="ln-sum-v" id="iss-sum-soon">0</b></div>
-        <div class="ln-sum-item"><span class="ln-sum-k">전체(진행)</span><b class="ln-sum-v" id="iss-sum-active">0</b></div>
-        <div class="ln-sum-item"><span class="ln-sum-k">기한 초과</span><b class="ln-sum-v" id="iss-sum-over">0</b></div>
-        <div class="ln-sum-total iss-sum-add">
-          <button type="button" class="btn btn-primary btn-sm" id="btn-issue-new">+ 등록</button>
+        <header class="ln-sum-head">
+          <h2 class="ln-sum-title">일정 현황</h2>
+          <span class="ln-sum-cap">기한 임박 순</span>
+          <button type="button" class="btn btn-primary btn-sm ln-add" id="btn-issue-new">+ 등록</button>
+        </header>
+        <div class="ln-sum-body">
+          <div class="ln-sum-stats iss-sum-stats">
+            <div class="ln-sum-item"><span class="ln-sum-k">7일 이내</span><b class="ln-sum-v" id="iss-sum-soon">0</b></div>
+            <div class="ln-sum-item"><span class="ln-sum-k">전체(진행)</span><b class="ln-sum-v" id="iss-sum-active">0</b></div>
+            <div class="ln-sum-item"><span class="ln-sum-k">기한 초과</span><b class="ln-sum-v" id="iss-sum-over">0</b></div>
+          </div>
+          <a class="ln-sum-side" href="#/archive?tab=history" id="iss-hist-link">
+            <span class="ln-sum-k">완료 기록</span>
+            <b class="ln-sum-v"><span id="iss-hist-n">0</span>건</b>
+            <span class="ln-sum-sub">결산·자료실에서 보기 →</span>
+          </a>
         </div>
       </section>
-
-      <p class="iss-hist-link-row">완료한 일정은 <b>결산·자료실</b>에 모아 둡니다. <a href="#/archive?tab=history" id="iss-hist-link">완료 기록 <b id="iss-hist-n">0</b>건 보기 →</a></p>
 
       <div class="iss-quick">
         <span class="iss-quick-k">빠른 등록</span>
@@ -688,7 +709,7 @@
 <div class="toast" id="toast" hidden></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="demo.js?v=20261128-19"></script>
-<script src="app.js?v=20261128-19"></script>
+<script src="demo.js?v=20261128-20"></script>
+<script src="app.js?v=20261128-20"></script>
 </body>
 </html>

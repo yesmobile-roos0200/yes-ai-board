@@ -1499,7 +1499,7 @@
     const owner = l.owner_name || l.name || '회선';
     const phone = fmtPhone(l.phone_number);
     const provider = [l.provider_name || l.provider_group, l.network_provider ? `${l.network_provider}망` : ''].filter(Boolean).join(' · ');
-    const sub = [l.name && l.name !== owner ? l.name : '', provider].filter(Boolean).join(' · ');
+    const sub = l.name && l.name !== owner ? l.name : '';
     const dates = [];
     if (l.line_type === '가개통') {
       if (l.plan_change_available_date) {
@@ -1515,16 +1515,20 @@
     }
     const fee = lineTotalFee(l);
     const addonFee = lineAddonFee(l.id);
-    const badge = done ? '<span class="ln-dday">완료</span>' : next ? `<span class="ln-dday ${ddayClass(next.diff)}">${esc(ddayText(next.diff))}</span>` : '';
+    const badge = done ? '<span class="ln-dday is-done">완료</span>' : next ? `<span class="ln-dday ${ddayClass(next.diff)}">${esc(ddayText(next.diff))}</span>` : '';
     return `<li class="ln-item ${cls}" data-ln-open="${esc(l.id)}" tabindex="0" role="button">
-      <div class="ln-item-top">
-        <span class="ln-kind">${esc(l.line_type)} · ${esc(lineStatusLabel(l))}</span>
+      <div class="ln-item-head">
+        <h3 class="ln-name">${esc(owner)}${phone ? `<span class="ln-phone">${esc(phone)}</span>` : ''}</h3>
         ${badge}
       </div>
-      <h3 class="ln-name">${esc(owner)}${phone ? `<span class="ln-phone">${esc(phone)}</span>` : ''}</h3>
-      ${sub ? `<div class="ln-sub">${esc(sub)}</div>` : ''}
+      <div class="ln-item-meta">
+        <span class="ln-tag is-type">${esc(l.line_type)}</span>
+        <span class="ln-tag is-state">${esc(lineStatusLabel(l))}</span>
+        ${provider ? `<span class="ln-tag is-net">${esc(provider)}</span>` : ''}
+        ${sub ? `<span class="ln-sub">${esc(sub)}</span>` : ''}
+        <span class="ln-fee">월 ${esc(won(fee))}${addonFee ? `<span class="ln-fee-sub">부가 ${esc(won(addonFee))}</span>` : ''}</span>
+      </div>
       ${dates.length ? `<div class="ln-dates">${dates.slice(0, 2).map((d) => `<span class="ln-date ${d.diff != null ? ddayClass(d.diff) : ''}">${esc(d.label)} ${esc(fmtDot(d.date))}</span>`).join('')}</div>` : ''}
-      <div class="ln-fee">월 ${esc(won(fee))}${addonFee ? `<span class="ln-fee-sub">회선 ${esc(won(l.monthly_fee))} + 부가 ${esc(won(addonFee))}</span>` : ''}</div>
     </li>`;
   }
 
@@ -2221,18 +2225,20 @@
       : issueDueYmd(i) ? `목표 ${fmtMd(issueDueYmd(i))}` : '일정 없음';
     const badge = n == null ? '' : `<span class="ln-dday ${ddayClass(n)}">${esc(ddayText(n))}</span>`;
     return `<li class="ln-item ${cls}">
-      <div class="ln-item-top">
+      <div class="ln-item-head">
+        <h3 class="iss-title">${esc(i.title || '(제목 없음)')}</h3>
+        ${badge}
+      </div>
+      <div class="ln-item-meta">
         <span class="iss-chips">
           <span class="ic-chip ${catCls}">${esc(i.category || '기타')}</span>
           <span class="iss-st ${stCls}">${esc(i.status || '대기')}</span>
           <span class="iss-pr ${prCls}">${esc(i.priority || '보통')}</span>
         </span>
-        ${badge}
-      </div>
-      <h3 class="iss-title">${esc(i.title || '(제목 없음)')}</h3>
-      <div class="iss-when">
-        <span class="iss-due">${esc(when)}</span>
-        ${i.amount != null ? `<span class="iss-amount">${esc(won(i.amount))}</span>` : ''}
+        <span class="iss-when">
+          <span class="iss-due">${esc(when)}</span>
+          ${i.amount != null ? `<span class="iss-amount">${esc(won(i.amount))}</span>` : ''}
+        </span>
       </div>
       ${i.next_action ? `<div class="iss-next">${esc(i.next_action)}</div>` : ''}
       <div class="iss-actions">
@@ -2246,15 +2252,17 @@
     const catCls = ISSUE_CAT_CLASS[i.category] || 'ic-etc';
     const when = i.completed_at ? fmtKstTime(i.completed_at) : '';
     return `<li class="ln-item">
-      <div class="ln-item-top">
+      <div class="ln-item-head">
+        <h3 class="iss-title">${esc(i.title || '(제목 없음)')}</h3>
+        ${when ? `<span class="ln-dday is-done">${esc(when)} 완료</span>` : ''}
+      </div>
+      <div class="ln-item-meta">
         <span class="iss-chips">
           <span class="ic-chip ${catCls}">${esc(i.category || '기타')}</span>
           ${issueDueYmd(i) ? `<span class="iss-pr">목표 ${esc(fmtMd(issueDueYmd(i)))}</span>` : ''}
           ${i.amount != null ? `<span class="iss-pr">${esc(won(i.amount))}</span>` : ''}
         </span>
-        ${when ? `<span class="iss-pr">${esc(when)} 완료</span>` : ''}
       </div>
-      <h3 class="iss-title">${esc(i.title || '(제목 없음)')}</h3>
       ${i.next_action ? `<div class="iss-next">${esc(i.next_action)}</div>` : ''}
       ${i.result_note ? `<div class="iss-result"><span class="iss-result-k">처리결과</span>${esc(i.result_note)}</div>` : ''}
       <div class="iss-actions"><button type="button" class="ln-btn ln-btn-xs" data-iss-edit="${esc(i.id)}">수정</button></div>
