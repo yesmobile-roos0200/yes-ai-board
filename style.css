@@ -914,6 +914,11 @@ body.modal-open{overflow:hidden}
 .iss-actions{display:flex;gap:6px;margin-top:9px}
 .iss-actions .ln-btn{background:#fff}
 
+/* 일정 폼 — 분류 7개는 4열 그리드(글자 잘림·두 줄 바꿈 방지) */
+#iss-f-cats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+#iss-f-cats button{flex:none;width:100%;min-width:0;height:34px;padding:0 4px;font-size:12.6px;white-space:nowrap}
+#iss-f-status button,#iss-f-priority button{min-width:0}
+
 .iss-hist-group{margin-bottom:16px}
 .iss-hist-group:last-child{margin-bottom:0}
 .iss-hist-month{display:flex;align-items:center;gap:8px;margin:0 0 8px;padding:0 2px;font-size:12.8px;font-weight:700;color:#5f6879}
@@ -929,6 +934,7 @@ body.modal-open{overflow:hidden}
   .iss-quick .ln-btn{flex:1 1 calc(50% - 3px);height:32px}
   .iss-search-row input{font-size:16px}
   .iss-title{font-size:15.4px}
+  #iss-f-cats button,#iss-f-status button,#iss-f-priority button{height:38px;font-size:13px}
   .iss-hist-month{padding:0 12px;margin:0 0 6px}
   .iss-hist-group{margin-bottom:12px}
   .iss-result{margin-top:8px}
