@@ -27,7 +27,7 @@ on conflict (email) do nothing;
 create table if not exists public.ai_board_posts (
   id         bigserial primary key,
   user_id    uuid not null default auth.uid(),
-  category   text not null,
+  category   text not null,   -- 업무/고객예약/개발·앱/세무·정산/개인/결산·자료/사입·택배 (CHECK 없음 — 앱·board-api가 검증)
   author     text not null,
   title      text not null,
   content    text not null default '',
