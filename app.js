@@ -557,11 +557,9 @@
     $('#view-detail').hidden = v !== 'detail';
     $('#view-write').hidden = v !== 'write';
     const bar = $('.board-toolbar');
-    if (bar) bar.hidden = !(v === 'list' || v === 'archive');
+    if (bar) bar.hidden = v !== 'list';   // 2026-11-29: 화면 이름은 상단 메뉴 줄이 이미 보여 준다 — 제목 줄은 개수만
     syncNav();
-    if (v === 'archive') {
-      $('#board-title').innerHTML = '📚 결산·자료실 <span class="muted">쌓아 두고 다시 보는 자료</span>';
-    } else if (v === 'list' && state.loaded) {
+    if (v === 'list' && state.loaded) {
       renderBoardTitle();
     }
     buildTabs();
@@ -797,10 +795,9 @@
 
   function renderBoardTitle(term) {
     if (!term) term = sanitizeTerm(state.q);
-    const base = state.category === ALL ? '전체 글' : esc(state.category) + ' 글';
     $('#board-title').innerHTML = term
       ? `‘${esc(term)}’ 검색 <b>${state.total}</b>건`
-      : `${base} <b>${state.total}</b>`;
+      : `<b>${state.total}</b>건`;
   }
 
   async function fetchCommentCounts(ids) {    const map = new Map();
@@ -1018,7 +1015,6 @@
         });
         if (deploys.length) {
           return `<section class="area-card ${a.cls} area-compact">${head}
-          <p class="area-sub">운영 버전 · 앱별 최신 배포</p>
           <ul class="area-list">${deploys.map(areaItem).join('')}</ul>
         </section>`;
         }
@@ -2514,7 +2510,7 @@
         result_note: note || null
       }).eq('id', id);
       if (error) throw error;
-      toast('완료 처리했습니다. 결산·자료실 › 완료 기록에서 다시 볼 수 있습니다.');
+      toast('완료 처리했습니다.');
       closeModal('#issue-complete-modal');
       state.issuesDirty = true;
       await loadIssues(true, true);

@@ -207,8 +207,8 @@ pre{margin:0;white-space:pre-wrap;word-break:break-word}
   display:flex;align-items:center;justify-content:center;cursor:pointer;border-radius:6px;
 }
 .search-btn:hover{color:var(--accent)}
-.btn-top-write{height:30px;padding:0 12px;border-radius:999px;font-size:12.8px;font-weight:800;gap:4px;letter-spacing:-.3px;background:#fff0e8 !important;border-color:#f2d6c6 !important;color:#c85527 !important;box-shadow:none}
-.btn-top-write:not(:disabled):hover{background:#fbe3d6 !important;border-color:#e7bfa9 !important;color:#a8451f !important}
+.btn-top-write{height:30px;padding:0 12px;border-radius:999px;font-size:12.8px;font-weight:800;gap:4px;letter-spacing:-.3px;background:#fff !important;border-color:#eae5dc !important;color:#1c1b18 !important;box-shadow:none}
+.btn-top-write:not(:disabled):hover{background:#f6f2ea !important;border-color:#dfd8cb !important;color:#1c1b18 !important}
 .btn-top-write-plus{font-size:14.5px;line-height:1;font-weight:800;margin-top:-1px}
 
 /* 표 */
