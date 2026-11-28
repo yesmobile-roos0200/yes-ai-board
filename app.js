@@ -122,7 +122,12 @@
     arch: null,          // 결산·자료실 { posts, counts, at }
     archDirty: true,
     archFilter: 'all',
-    personalOpen: false
+    personalOpen: false,
+    lines: null,          // 회선 { lines, addons, at }
+    linesDirty: true,
+    linesFilter: '전체',
+    lineOpenId: null,     // 상세 모달에 열린 회선 id
+    lineFormId: null      // 수정 중인 회선 id (신규면 null)
   };
 
   let db = null;
@@ -465,6 +470,8 @@
     $('#view-dashboard').hidden = v !== 'dashboard';
     $('#view-list').hidden = v !== 'list';
     $('#view-archive').hidden = v !== 'archive';
+    const linesView = $('#view-lines');
+    if (linesView) linesView.hidden = v !== 'lines';
     $('#view-detail').hidden = v !== 'detail';
     $('#view-write').hidden = v !== 'write';
     const bar = $('.board-toolbar');
@@ -560,9 +567,11 @@
   function buildTabs() {
     const listOn = state.view === 'list' && state.category === ALL;
     const archOn = state.view === 'archive';
+    const linesOn = state.view === 'lines';
     const mainParts = [
       `<button type="button" class="tab${listOn ? ' active' : ''}" role="tab" data-nav="all" aria-selected="${listOn}">전체 글</button>`,
-      `<button type="button" class="tab tab-arch${archOn ? ' active' : ''}" role="tab" data-nav="archive" aria-selected="${archOn}">결산·자료실</button>`
+      `<button type="button" class="tab tab-arch${archOn ? ' active' : ''}" role="tab" data-nav="archive" aria-selected="${archOn}">결산·자료실</button>`,
+      `<button type="button" class="tab tab-lines${linesOn ? ' active' : ''}" role="tab" data-nav="lines" aria-selected="${linesOn}">회선</button>`
     ];
     const catParts = CATEGORIES.map((c) => {
       const on = state.view === 'list' && state.category === c;
@@ -1121,6 +1130,858 @@
     if (foot) foot.textContent = `기준 ${fmtFull(a.at.toISOString())} · 누적 자료 ${posts.length}건 · 지금 보기 ${list.length}건`;
   }
 
+  /* ---------- 회선 관리 (#/lines) — 2026-11-28 러버블 yescom-game-hq /lines 통합 ----------
+     테이블(실측): lines 30컬럼 · line_addons 11컬럼(line_id FK, user_id 없음). 부가서비스는 별도 테이블. */
+  const LINE_TYPES = ['약정', '가개통'];
+  const LINE_GROUPS = ['SK', 'KT', 'LG', '알뜰'];
+  const LINE_GROUP_LABEL = { SK: 'SKT', KT: 'KT', LG: 'LGU+' };
+  const LINE_FILTERS = ['전체', '약정', '가개통', '완료'];
+
+  const digitsOnly = (v) => String(v == null ? '' : v).replace(/[^0-9]/g, '');
+
+  function fmtPhone(v) {
+    const d = digitsOnly(v);
+    if (!d) return '';
+    if (d.startsWith('02')) {
+      if (d.length <= 2) return d;
+      if (d.length <= 5) return `02-${d.slice(2)}`;
+      if (d.length <= 9) return `02-${d.slice(2, d.length - 4)}-${d.slice(-4)}`;
+      return `02-${d.slice(2, 6)}-${d.slice(6, 10)}`;
+    }
+    if (d.length <= 3) return d;
+    if (d.length <= 7) return `${d.slice(0, 3)}-${d.slice(3)}`;
+    if (d.length === 10) return `${d.slice(0, 3)}-${d.slice(3, 6)}-${d.slice(6)}`;
+    return `${d.slice(0, 3)}-${d.slice(3, 7)}-${d.slice(7, 11)}`;
+  }
+
+  function won(n) {
+    const v = Number(n || 0);
+    return `${(Number.isFinite(v) ? v : 0).toLocaleString('ko-KR')}원`;
+  }
+
+  function ymdDate(s) {
+    const m = String(s || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (!m) return null;
+    const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+    return isNaN(d.getTime()) ? null : d;
+  }
+  function todayYmd() {
+    const d = new Date();
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  }
+  function daysUntil(s) {
+    const d = ymdDate(s);
+    const t = ymdDate(todayYmd());
+    if (!d || !t) return null;
+    return Math.round((d.getTime() - t.getTime()) / 86400000);
+  }
+  function addDaysYmd(s, n) {
+    const d = ymdDate(s);
+    const num = Number(n);
+    if (!d || !Number.isFinite(num)) return null;
+    d.setDate(d.getDate() + num);
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  }
+  function fmtDot(s) {
+    const d = ymdDate(s);
+    return d ? `${d.getFullYear()}.${pad(d.getMonth() + 1)}.${pad(d.getDate())}` : '';
+  }
+  function ddayText(diff) {
+    if (diff == null) return '';
+    return diff < 0 ? `${-diff}일 지남` : diff === 0 ? '오늘' : `D-${diff}`;
+  }
+  function ddayClass(diff) {
+    if (diff == null) return '';
+    if (diff < 0 || diff === 0) return 'is-urgent';
+    return diff <= 7 ? 'is-soon' : '';
+  }
+
+  /* --- 회선 데이터 헬퍼 --- */
+  function lineStore() {
+    return state.lines || { lines: [], addons: [], at: null };
+  }
+  function lineById(id) {
+    return lineStore().lines.find((l) => String(l.id) === String(id)) || null;
+  }
+  function lineActiveAddons(lineId) {
+    return lineStore().addons.filter((a) => String(a.line_id) === String(lineId) && a.is_active && !a.removed_at);
+  }
+  function lineRemovedAddons(lineId) {
+    return lineStore().addons.filter((a) => String(a.line_id) === String(lineId) && (!a.is_active || a.removed_at));
+  }
+  function lineAddonFee(lineId) {
+    return lineActiveAddons(lineId).reduce((s, a) => s + (Number(a.monthly_fee) || 0), 0);
+  }
+  function lineTotalFee(l) {
+    return (Number(l.monthly_fee) || 0) + lineAddonFee(l.id);
+  }
+  function lineIsDone(l) {
+    return !l.is_active || l.status === '완료';
+  }
+  function lineStatusLabel(l) {
+    if (lineIsDone(l)) return '완료';
+    return l.line_type === '약정' ? '유지중' : '진행중';
+  }
+  /* 다음에 챙길 날짜 하나 — 가개통은 요금제 변경·부가 삭제·유지 마감 중 가장 급한 것 */
+  function lineNextDate(l) {
+    const out = [];
+    if (l.line_type === '약정') {
+      if (l.contract_end_date) out.push({ label: '만기', date: l.contract_end_date, diff: daysUntil(l.contract_end_date) });
+    } else {
+      if (l.plan_change_available_date && !l.plan_changed_at) {
+        out.push({ label: '요금제 변경', date: l.plan_change_available_date, diff: daysUntil(l.plan_change_available_date) });
+      }
+      lineActiveAddons(l.id).forEach((a) => {
+        if (a.removable_date) out.push({ label: `${a.addon_name} 삭제`, date: a.removable_date, diff: daysUntil(a.removable_date) });
+      });
+      if (l.maintenance_end_date) {
+        const d = daysUntil(l.maintenance_end_date);
+        out.push({ label: d != null && d < 0 ? '회선 유지기간 경과' : '회선 유지 마감', date: l.maintenance_end_date, diff: d });
+      }
+    }
+    const list = out.filter((x) => x.diff != null);
+    if (!list.length) return null;
+    list.sort((a, b) => {
+      const ra = a.diff < 0 ? 0 : 1;
+      const rb = b.diff < 0 ? 0 : 1;
+      return ra === rb ? a.diff - b.diff : ra - rb;
+    });
+    return list[0];
+  }
+
+  /* --- 모달 공통 --- */
+  function anyModalOpen() {
+    return $$('.ln-modal').some((m) => !m.hidden);
+  }
+  function openModal(sel) {
+    const m = $(sel);
+    if (!m) return;
+    m.hidden = false;
+    document.body.classList.add('modal-open');
+  }
+  function closeModal(sel) {
+    const m = $(sel);
+    if (m) m.hidden = true;
+    if (!anyModalOpen()) document.body.classList.remove('modal-open');
+    if (!anyModalOpen()) state.lineOpenId = null;
+  }
+  function closeAllModals() {
+    $$('.ln-modal').forEach((m) => { m.hidden = true; });
+    document.body.classList.remove('modal-open');
+    state.lineOpenId = null;
+  }
+
+  /* --- 불러오기 --- */
+  function lineLoadError(error) {
+    if (!error) return '알 수 없는 오류';
+    if (error.code === '42501' || error.code === 'PGRST301') return '회선 데이터에 접근할 권한이 없습니다. (Supabase RLS)';
+    return error.message || String(error);
+  }
+
+  async function loadLines(force) {
+    showView('lines');
+    if (state.lines && !force && !state.linesDirty) { renderLines(); return; }
+    if (!state.lines) {
+      $('#ln-list').innerHTML = '<li class="ln-loading">불러오는 중…</li>';
+      $('#ln-list').hidden = false;
+      $('#ln-empty').hidden = true;
+    }
+
+    const [resL, resA] = await Promise.all([
+      db.from('lines').select('*').order('created_at', { ascending: false }),
+      db.from('line_addons').select('*').order('created_at', { ascending: false })
+    ]);
+
+    if (resL.error || resA.error) {
+      const error = resL.error || resA.error;
+      if (isAuthError(error)) return forceLogin();
+      if (isSetupError(error)) {
+        $('#ln-list').innerHTML = '<li class="ln-loading">회선 테이블(`lines`)이 아직 없습니다. Supabase에 러버블 회선관리 스키마가 있는지 확인해 주세요.</li>';
+        return;
+      }
+      $('#ln-list').innerHTML = `<li class="ln-loading">회선을 불러오지 못했습니다: ${esc(lineLoadError(error))}</li>`;
+      return;
+    }
+
+    state.lines = { lines: resL.data || [], addons: resA.data || [], at: new Date() };
+    state.linesDirty = false;
+    renderLines();
+  }
+
+  /* --- 목록 --- */
+  function lineSummary() {
+    const all = lineStore().lines;
+    const active = all.filter((l) => !lineIsDone(l));
+    const ids = new Set(active.map((l) => String(l.id)));
+    const lineFee = active.reduce((s, l) => s + (Number(l.monthly_fee) || 0), 0);
+    const addonFee = lineStore().addons
+      .filter((a) => a.is_active && !a.removed_at && ids.has(String(a.line_id)))
+      .reduce((s, a) => s + (Number(a.monthly_fee) || 0), 0);
+    const within30 = active.filter((l) => {
+      const n = lineNextDate(l);
+      return !!(n && n.diff >= 0 && n.diff <= 30);
+    }).length;
+    return {
+      active: active.length,
+      contract: active.filter((l) => l.line_type === '약정').length,
+      prepaid: active.filter((l) => l.line_type === '가개통').length,
+      done: all.length - active.length,
+      within30,
+      lineFee,
+      addonFee,
+      total: lineFee + addonFee
+    };
+  }
+
+  function linesForFilter() {
+    const all = lineStore().lines;
+    const active = all.filter((l) => !lineIsDone(l));
+    const f = state.linesFilter || '전체';
+    const list = f === '완료' ? all.filter((l) => lineIsDone(l))
+      : f === '약정' ? active.filter((l) => l.line_type === '약정')
+        : f === '가개통' ? active.filter((l) => l.line_type === '가개통')
+          : active;
+    return [...list].sort((a, b) => {
+      const na = lineNextDate(a);
+      const nb = lineNextDate(b);
+      const rank = (l, n) => (n && n.diff < 0 ? 0 : n ? 1 : l.line_type === '약정' && l.contract_end_date ? 2 : 3);
+      const ra = rank(a, na);
+      const rb = rank(b, nb);
+      if (ra !== rb) return ra - rb;
+      if (na && nb && na.diff !== nb.diff) return na.diff - nb.diff;
+      return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
+    });
+  }
+
+  function lineItemHtml(l) {
+    const next = lineNextDate(l);
+    const done = lineIsDone(l);
+    const cls = done || !next ? '' : ddayClass(next.diff);
+    const owner = l.owner_name || l.name || '회선';
+    const phone = fmtPhone(l.phone_number);
+    const provider = [l.provider_name || l.provider_group, l.network_provider ? `${l.network_provider}망` : ''].filter(Boolean).join(' · ');
+    const sub = [l.name && l.name !== owner ? l.name : '', provider].filter(Boolean).join(' · ');
+    const dates = [];
+    if (l.line_type === '가개통') {
+      if (l.plan_change_available_date) {
+        dates.push({
+          label: l.plan_changed_at ? '요금제 변경 완료' : '요금제 변경',
+          date: l.plan_change_available_date,
+          diff: l.plan_changed_at ? null : daysUntil(l.plan_change_available_date)
+        });
+      }
+      if (l.maintenance_end_date) dates.push({ label: '유지 마감', date: l.maintenance_end_date, diff: daysUntil(l.maintenance_end_date) });
+    } else if (l.contract_end_date) {
+      dates.push({ label: '만기', date: l.contract_end_date, diff: daysUntil(l.contract_end_date) });
+    }
+    const fee = lineTotalFee(l);
+    const addonFee = lineAddonFee(l.id);
+    const badge = done ? '<span class="ln-dday">완료</span>' : next ? `<span class="ln-dday ${ddayClass(next.diff)}">${esc(ddayText(next.diff))}</span>` : '';
+    return `<li class="ln-item ${cls}" data-ln-open="${esc(l.id)}" tabindex="0" role="button">
+      <div class="ln-item-top">
+        <span class="ln-kind">${esc(l.line_type)} · ${esc(lineStatusLabel(l))}</span>
+        ${badge}
+      </div>
+      <h3 class="ln-name">${esc(owner)}${phone ? `<span class="ln-phone">${esc(phone)}</span>` : ''}</h3>
+      ${sub ? `<div class="ln-sub">${esc(sub)}</div>` : ''}
+      ${dates.length ? `<div class="ln-dates">${dates.slice(0, 2).map((d) => `<span class="ln-date ${d.diff != null ? ddayClass(d.diff) : ''}">${esc(d.label)} ${esc(fmtDot(d.date))}</span>`).join('')}</div>` : ''}
+      <div class="ln-fee">월 ${esc(won(fee))}${addonFee ? `<span class="ln-fee-sub">회선 ${esc(won(l.monthly_fee))} + 부가 ${esc(won(addonFee))}</span>` : ''}</div>
+    </li>`;
+  }
+
+  function renderLines() {
+    const s = lineSummary();
+    $('#ln-sum-active').textContent = String(s.active);
+    $('#ln-sum-contract').textContent = String(s.contract);
+    $('#ln-sum-prepaid').textContent = String(s.prepaid);
+    $('#ln-sum-soon').textContent = String(s.within30);
+    $('#ln-sum-total').textContent = won(s.total);
+    $('#ln-sum-split').textContent = `회선 ${won(s.lineFee)} · 부가 ${won(s.addonFee)}`;
+
+    const counts = { '전체': s.active, '약정': s.contract, '가개통': s.prepaid, '완료': s.done };
+    $$('#ln-filters .ln-filter').forEach((b) => {
+      const key = b.dataset.lnFilter;
+      const on = key === (state.linesFilter || '전체');
+      b.classList.toggle('active', on);
+      b.setAttribute('aria-pressed', String(on));
+      const n = $('.ln-n', b);
+      if (n) n.textContent = String(counts[key] || 0);
+    });
+
+    const list = linesForFilter();
+    const ul = $('#ln-list');
+    ul.innerHTML = list.map(lineItemHtml).join('');
+    ul.hidden = list.length === 0;
+    $('#ln-empty').hidden = list.length > 0;
+    const foot = $('#ln-foot');
+    if (foot) {
+      foot.textContent = state.lines && state.lines.at
+        ? `기준 ${fmtFull(state.lines.at.toISOString())} · 활성 ${s.active}건 · 완료 ${s.done}건`
+        : '';
+    }
+  }
+
+  /* --- 상세 --- */
+  function lnRow(k, v, cls) {
+    if (v == null || v === '') return '';
+    return `<div class="ln-row"><span class="ln-k">${esc(k)}</span><span class="ln-v ${cls || ''}">${v}</span></div>`;
+  }
+
+  function openLineDetail(id) {
+    const l = lineById(id);
+    if (!l) return;
+    state.lineOpenId = String(id);
+    renderLineDetail();
+    openModal('#line-modal');
+  }
+
+  function renderLineDetail() {
+    const l = lineById(state.lineOpenId);
+    if (!l) { closeAllModals(); return; }
+    const done = lineIsDone(l);
+    const addons = lineActiveAddons(l.id);
+    const removed = lineRemovedAddons(l.id);
+    const addonFee = lineAddonFee(l.id);
+    const phone = fmtPhone(l.phone_number);
+    const provider = [l.provider_name || l.provider_group, l.network_provider ? `${l.network_provider}망` : ''].filter(Boolean).join(' · ');
+    const next = lineNextDate(l);
+    const secs = [];
+
+    /* 기본정보 */
+    const basics = [
+      lnRow('이름', l.owner_name ? esc(l.owner_name) : ''),
+      lnRow('전화번호', phone ? esc(phone) : ''),
+      lnRow('관리명', l.name ? esc(l.name) : ''),
+      lnRow('통신사', provider ? esc(provider) : ''),
+      lnRow('관리 장소', l.line_type === '약정' && l.owner_location ? esc(l.owner_location) : ''),
+      lnRow('상품', l.line_type === '약정' && l.product ? esc(l.product) : '')
+    ].join('');
+    secs.push(`<div class="ln-sec"><div class="ln-sec-t">기본정보</div>${basics || '<div class="ln-row"><span class="ln-k">등록된 정보가 없습니다</span></div>'}</div>`);
+
+    /* 금액 */
+    const money = [
+      lnRow('월 회선요금', esc(won(l.monthly_fee)), 'money'),
+      lnRow('월 부가서비스', esc(won(addonFee)), 'money'),
+      lnRow('월 총유지비', esc(won(lineTotalFee(l))), 'strong money'),
+      l.benefit_amount != null ? lnRow('혜택·수수료', esc(won(l.benefit_amount)), 'money') : '',
+      l.benefit_note ? lnRow('혜택 설명', esc(l.benefit_note)) : ''
+    ].join('');
+    secs.push(`<div class="ln-sec"><div class="ln-sec-t">금액</div>${money}</div>`);
+
+    /* 주요 날짜 */
+    const dates = [];
+    if (l.line_type === '약정') {
+      if (l.activation_date) dates.push(lnRow('계약 시작일', esc(fmtDot(l.activation_date))));
+      if (l.contract_end_date) {
+        const d = daysUntil(l.contract_end_date);
+        dates.push(lnRow('약정 만기일', `${esc(fmtDot(l.contract_end_date))} <span class="ln-dday ${ddayClass(d)}">${esc(ddayText(d))}</span>`));
+      }
+    } else {
+      if (l.activation_date) {
+        dates.push(lnRow('개통일', esc(fmtDot(l.activation_date))));
+        const elapsed = daysUntil(l.activation_date);
+        const used = elapsed == null ? null : -elapsed;
+        const goal = l.maintenance_days == null ? null : Number(l.maintenance_days);
+        if (used != null && used >= 0) {
+          let main = `${used}일`;
+          let sub = '';
+          if (goal && goal > 0) {
+            main = `${used}일 / ${goal}일`;
+            sub = used < goal ? `잔여 ${goal - used}일` : used === goal ? '오늘 유지 완료' : `${used - goal}일 경과`;
+          }
+          dates.push(lnRow('오늘까지 사용', `${esc(main)}${sub ? `<span class="ln-sub2"> · ${esc(sub)}</span>` : ''}`));
+        }
+      }
+      if (l.opening_plan) dates.push(lnRow('개통요금제', esc(l.opening_plan)));
+      if (l.plan_change_available_date) {
+        const d = daysUntil(l.plan_change_available_date);
+        dates.push(lnRow('요금제 변경 가능일', `${esc(fmtDot(l.plan_change_available_date))}${l.plan_changed_at ? '' : ` <span class="ln-dday ${ddayClass(d)}">${esc(ddayText(d))}</span>`}`));
+      }
+      if (l.plan_changed_at) dates.push(lnRow('요금제 변경 완료일', esc(fmtDot(l.plan_changed_at))));
+      if (l.maintenance_end_date) {
+        const d = daysUntil(l.maintenance_end_date);
+        dates.push(lnRow('회선 유지 마감일', `${esc(fmtDot(l.maintenance_end_date))} <span class="ln-dday ${ddayClass(d)}">${esc(ddayText(d))}</span>`));
+      }
+      if (l.maintenance_days) dates.push(lnRow('회선 유지일수', `${esc(String(l.maintenance_days))}일`));
+    }
+    secs.push(`<div class="ln-sec"><div class="ln-sec-t">주요 날짜${next ? `<span class="ln-next ${ddayClass(next.diff)}">${esc(next.label)} ${esc(ddayText(next.diff))}</span>` : ''}</div>${dates.join('') || '<div class="ln-row"><span class="ln-k">등록된 날짜가 없습니다</span></div>'}</div>`);
+
+    /* 요금제 변경 완료 버튼 */
+    if (!done && l.line_type === '가개통' && l.plan_change_available_date && !l.plan_changed_at) {
+      secs.push(`<button type="button" class="ln-btn ok ln-wide" data-ln-plan-change="${esc(l.id)}">요금제 변경 완료</button>`);
+    }
+
+    /* 부가서비스 */
+    const addonRows = addons.length
+      ? addons.map((a) => {
+        const d = daysUntil(a.removable_date);
+        return `<div class="ln-addon">
+          <div class="ln-addon-top">
+            <span class="ln-addon-name">${esc(a.addon_name)}</span>
+            ${a.removable_date ? `<span class="ln-dday ${ddayClass(d)}">${esc(ddayText(d))}</span>` : ''}
+          </div>
+          <div class="ln-addon-meta">월 ${esc(won(a.monthly_fee))}${a.removable_date ? ` · 삭제가능 ${esc(fmtDot(a.removable_date))}` : ''}${a.joined_date ? ` · 가입 ${esc(fmtDot(a.joined_date))}` : ''}</div>
+          ${a.memo ? `<div class="ln-addon-meta">${esc(a.memo)}</div>` : ''}
+          <div class="ln-addon-btns">
+            <button type="button" class="ln-btn" data-ln-addon-edit="${esc(a.id)}">수정</button>
+            <button type="button" class="ln-btn ok" data-ln-addon-remove="${esc(a.id)}">삭제 완료</button>
+          </div>
+        </div>`;
+      }).join('')
+      : '<div class="ln-row"><span class="ln-k">등록된 부가서비스가 없습니다</span></div>';
+    const removedBlock = removed.length
+      ? `<details class="ln-removed"><summary>삭제 완료 기록 (${removed.length})</summary><ul>${removed.map((a) => `<li>${esc(a.addon_name)} · ${esc(won(a.monthly_fee))}${a.removed_at ? ` · 삭제 ${esc(fmtDot(a.removed_at))}` : ''}</li>`).join('')}</ul></details>`
+      : '';
+    secs.push(`<div class="ln-sec"><div class="ln-sec-t">부가서비스${done ? '' : `<button type="button" class="ln-btn blue ln-btn-xs" data-ln-addon-add="${esc(l.id)}">+ 추가</button>`}</div>${addonRows}${removedBlock}</div>`);
+
+    /* 메모 */
+    if (l.memo) secs.push(`<div class="ln-sec"><div class="ln-sec-t">메모</div><div class="ln-v ln-memo">${esc(l.memo)}</div></div>`);
+    if (done && l.result_note) secs.push(`<div class="ln-sec"><div class="ln-sec-t">처리결과</div><div class="ln-v ln-memo">${esc(l.result_note)}</div></div>`);
+
+    const head = `<div class="ln-sheet-head">
+      <div>
+        <h2 class="ln-sheet-title" id="ln-detail-title">${esc(l.owner_name || l.name || '회선')}${phone ? ` <span class="ln-phone">${esc(phone)}</span>` : ''}</h2>
+        <p class="ln-sheet-sub">${esc(l.line_type)} · ${esc(lineStatusLabel(l))}${provider ? ` · ${esc(provider)}` : ''}${done ? ` · 종료 ${esc(fmtDot(l.completed_at || l.updated_at))}` : ''}</p>
+      </div>
+      <button type="button" class="ln-x" data-ln-close aria-label="닫기">×</button>
+    </div>`;
+
+    const foot = `<div class="ln-sheet-foot">
+      <button type="button" class="ln-btn" data-ln-close>닫기</button>
+      ${done ? '' : `<button type="button" class="ln-btn" data-ln-edit="${esc(l.id)}">수정</button>
+      <button type="button" class="ln-btn warn" data-ln-complete="${esc(l.id)}">종료 처리</button>`}
+    </div>`;
+
+    $('#ln-detail-sheet').innerHTML = head + secs.join('') + foot;
+  }
+
+  /* --- 등록·수정 폼 --- */
+  function segSet(sel, value) {
+    $$(sel + ' button').forEach((b) => {
+      const on = (b.dataset.lnType || b.dataset.lnGroup || b.dataset.lnNet) === value;
+      b.classList.toggle('on', on);
+      b.setAttribute('aria-pressed', String(on));
+    });
+  }
+  function lineFormType() { const f = $('#line-form'); return (f && f.dataset.type) || '약정'; }
+  function lineFormGroup() { const f = $('#line-form'); return (f && f.dataset.group) || ''; }
+  function lineFormNet() { const f = $('#line-form'); return (f && f.dataset.net) || ''; }
+
+  function applyLineFormType(type) {
+    const f = $('#line-form');
+    if (!f) return;
+    f.dataset.type = type;
+    segSet('#ln-f-types', type);
+    $$('#line-form [data-ln-only]').forEach((el) => { el.hidden = el.dataset.lnOnly !== type; });
+    $('#ln-f-act-label').textContent = type === '약정' ? '계약 시작일' : '개통일';
+    $('#ln-f-phone-req').textContent = type === '가개통' ? '*' : '(약정은 비워도 됨)';
+    $('#ln-f-remind').placeholder = type === '약정' ? '기본 90' : '기본 30';
+    syncMaintenance();
+  }
+
+  function syncMaintenance() {
+    const daysEl = $('#ln-f-days');
+    const actEl = $('#ln-f-act');
+    const endEl = $('#ln-f-maint');
+    if (!daysEl || !actEl || !endEl) return;
+    const days = Number(digitsOnly(daysEl.value));
+    if (days > 0 && actEl.value) {
+      endEl.value = addDaysYmd(actEl.value, days - 1) || '';
+      endEl.setAttribute('readonly', 'readonly');
+    } else {
+      endEl.removeAttribute('readonly');
+    }
+  }
+
+  function showLineFormError(msg) {
+    const el = $('#ln-form-error');
+    if (!el) return;
+    el.textContent = msg;
+    el.hidden = !msg;
+  }
+
+  function openLineForm(id) {
+    const l = id ? lineById(id) : null;
+    state.lineFormId = l ? String(l.id) : null;
+    $('#line-form-title').textContent = l ? '회선 수정' : '새 회선';
+    const type = l ? l.line_type : '약정';
+    const f = $('#line-form');
+    f.dataset.group = (l && l.provider_group) || '';
+    f.dataset.net = (l && l.network_provider) || '';
+    applyLineFormType(type);
+    segSet('#ln-f-groups', f.dataset.group);
+    segSet('#ln-f-nets', f.dataset.net);
+    $('#ln-f-net-wrap').hidden = f.dataset.group !== '알뜰';
+
+    $('#ln-f-owner').value = (l && l.owner_name) || '';
+    $('#ln-f-phone').value = fmtPhone((l && l.phone_number) || '');
+    $('#ln-f-name').value = (l && l.name) || '';
+    $('#ln-f-provider').value = (l && l.provider_name) || '';
+    $('#ln-f-fee').value = l && l.monthly_fee != null ? Number(l.monthly_fee).toLocaleString('ko-KR') : '';
+    $('#ln-f-remind').value = l && l.reminder_days != null ? String(l.reminder_days) : (type === '약정' ? '90' : '30');
+    $('#ln-f-act').value = (l && l.activation_date) || '';
+    $('#ln-f-end').value = (l && l.contract_end_date) || '';
+    $('#ln-f-loc').value = (l && l.owner_location) || '';
+    $('#ln-f-product').value = (l && l.product) || '';
+    $('#ln-f-plan').value = (l && l.opening_plan) || '';
+    $('#ln-f-change').value = (l && l.plan_change_available_date) || '';
+    $('#ln-f-days').value = l && l.maintenance_days != null ? String(l.maintenance_days) : '';
+    $('#ln-f-maint').value = (l && l.maintenance_end_date) || '';
+    $('#ln-f-benefit').value = l && l.benefit_amount != null ? Number(l.benefit_amount).toLocaleString('ko-KR') : '';
+    $('#ln-f-benefitnote').value = (l && l.benefit_note) || '';
+    $('#ln-f-memo').value = (l && l.memo) || '';
+    showLineFormError('');
+    syncMaintenance();
+    openModal('#line-form-modal');
+    setTimeout(() => { const el = $('#ln-f-owner'); if (el) el.focus(); }, 80);
+  }
+
+  function lineDbError(error) {
+    if (!error) return '저장하지 못했습니다.';
+    const code = error.code || '';
+    if (code === '42501') return '저장 권한이 없습니다(RLS). Supabase 정책을 확인해 주세요.';
+    if (code === '23502') return `필수 항목이 비었습니다: ${error.message || ''}`;
+    if (code === 'PGRST204') return `없는 컬럼입니다: ${error.message || ''}`;
+    return error.message || '저장하지 못했습니다.';
+  }
+
+  async function submitLineForm(e) {
+    e.preventDefault();
+    showLineFormError('');
+    const type = lineFormType();
+    const owner = $('#ln-f-owner').value.trim();
+    const phone = digitsOnly($('#ln-f-phone').value);
+    const group = lineFormGroup();
+    if (!owner) return showLineFormError('이름을 입력해 주세요.');
+    if (type === '가개통' && !phone) return showLineFormError('가개통 회선은 전화번호가 필요합니다.');
+    if (phone && phone.length < 9) return showLineFormError('전화번호가 너무 짧습니다.');
+    if (!group) return showLineFormError('통신사 구분(SK·KT·LG·알뜰)을 골라 주세요.');
+
+    const providerInput = $('#ln-f-provider').value.trim();
+    const providerName = providerInput || (group === '알뜰' ? '' : LINE_GROUP_LABEL[group]);
+    const days = Number(digitsOnly($('#ln-f-days').value)) || 0;
+    const act = $('#ln-f-act').value || null;
+    const benefit = digitsOnly($('#ln-f-benefit').value);
+    const remind = digitsOnly($('#ln-f-remind').value);
+
+    const payload = {
+      line_type: type,
+      name: $('#ln-f-name').value.trim() || null,
+      owner_name: owner,
+      phone_number: phone || null,
+      phone_last4: phone ? phone.slice(-4) : null,
+      provider_group: group,
+      provider_name: providerName || null,
+      network_provider: group === '알뜰' ? (lineFormNet() || null) : null,
+      monthly_fee: Number(digitsOnly($('#ln-f-fee').value)) || 0,
+      benefit_amount: benefit ? Number(benefit) : null,
+      benefit_note: $('#ln-f-benefitnote').value.trim() || null,
+      memo: $('#ln-f-memo').value.trim() || null,
+      activation_date: act,
+      reminder_days: remind ? Number(remind) : null
+    };
+
+    if (type === '약정') {
+      payload.owner_location = $('#ln-f-loc').value.trim() || null;
+      payload.product = $('#ln-f-product').value.trim() || null;
+      payload.contract_end_date = $('#ln-f-end').value || null;
+      payload.opening_plan = null;
+      payload.plan_change_available_date = null;
+      payload.maintenance_days = null;
+      payload.maintenance_end_date = null;
+    } else {
+      payload.owner_location = null;
+      payload.product = null;
+      payload.contract_end_date = null;
+      payload.opening_plan = $('#ln-f-plan').value.trim() || null;
+      payload.plan_change_available_date = $('#ln-f-change').value || null;
+      payload.maintenance_days = days > 0 ? days : null;
+      payload.maintenance_end_date = act && days > 0 ? addDaysYmd(act, days - 1) : ($('#ln-f-maint').value || null);
+    }
+
+    const btn = $('#btn-line-save');
+    const label = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = '저장 중…';
+    const editId = state.lineFormId;
+    let newId = null;
+    try {
+      if (editId) {
+        const { error } = await db.from('lines')
+          .update({ ...payload, updated_at: new Date().toISOString() })
+          .eq('id', editId);
+        if (error) throw error;
+        toast('회선을 수정했습니다.');
+      } else {
+        payload.user_id = state.session.user.id;
+        const { data, error } = await db.from('lines').insert(payload).select('id');
+        if (error) throw error;
+        newId = data && data[0] ? String(data[0].id) : null;
+        toast('회선을 등록했습니다.');
+      }
+      closeModal('#line-form-modal');
+      state.lineFormId = null;
+      state.linesDirty = true;
+      await loadLines(true);
+      const openId = editId || newId;
+      if (openId) { state.lineOpenId = String(openId); renderLineDetail(); openModal('#line-modal'); }
+    } catch (err) {
+      showLineFormError(lineDbError(err));
+    } finally {
+      btn.disabled = false;
+      btn.textContent = label;
+    }
+  }
+
+  /* --- 요금제 변경 완료 --- */
+  async function markPlanChanged(id) {
+    try {
+      const { error } = await db.from('lines')
+        .update({ plan_changed_at: todayYmd(), updated_at: new Date().toISOString() })
+        .eq('id', id);
+      if (error) throw error;
+      toast('요금제 변경 완료로 표시했습니다.');
+      state.linesDirty = true;
+      await loadLines(true);
+      renderLineDetail();
+    } catch (err) {
+      toast(lineDbError(err));
+    }
+  }
+
+  /* --- 종료 처리 --- */
+  function openComplete(id) {
+    const l = lineById(id);
+    if (!l) return;
+    state.lineOpenId = String(id);
+    $('#ln-c-line').value = String(id);
+    $('#ln-c-note').value = '';
+    $('#complete-form-error').hidden = true;
+    $('#complete-form-title').textContent = `${l.owner_name || l.name || '회선'} 종료 처리`;
+    openModal('#line-complete-modal');
+  }
+
+  async function submitComplete(e) {
+    e.preventDefault();
+    const id = $('#ln-c-line').value;
+    const note = $('#ln-c-note').value.trim();
+    const err = $('#complete-form-error');
+    err.hidden = true;
+    if (!id) return;
+    const btn = $('#btn-complete-save');
+    btn.disabled = true;
+    try {
+      const { error } = await db.from('lines').update({
+        status: '완료',
+        is_active: false,
+        completed_at: new Date().toISOString(),
+        result_note: note || null,
+        updated_at: new Date().toISOString()
+      }).eq('id', id);
+      if (error) throw error;
+      toast('종료 처리했습니다.');
+      closeModal('#line-complete-modal');
+      state.linesDirty = true;
+      await loadLines(true);
+      if (state.lineOpenId) { renderLineDetail(); openModal('#line-modal'); }
+    } catch (ex) {
+      err.textContent = lineDbError(ex);
+      err.hidden = false;
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  /* --- 부가서비스 --- */
+  function openAddonForm(lineId, addonId) {
+    const l = lineById(lineId);
+    if (!l) return;
+    const a = addonId ? lineStore().addons.find((x) => String(x.id) === String(addonId)) : null;
+    state.addonLineId = String(lineId);
+    $('#ln-a-line').value = String(lineId);
+    $('#ln-a-id').value = a ? String(a.id) : '';
+    $('#addon-form-title').textContent = a ? '부가서비스 수정' : '부가서비스 추가';
+    $('#addon-form-sub').textContent = `${l.owner_name || l.name || '회선'} · ${l.line_type}`;
+    $('#ln-a-name').value = a ? (a.addon_name || '') : '';
+    $('#ln-a-fee').value = a && a.monthly_fee != null ? Number(a.monthly_fee).toLocaleString('ko-KR') : '';
+    $('#ln-a-joined').value = (a && a.joined_date) || '';
+    $('#ln-a-removable').value = (a && a.removable_date) || '';
+    $('#ln-a-memo').value = (a && a.memo) || '';
+    $('#addon-form-error').hidden = true;
+    openModal('#line-addon-modal');
+  }
+
+  async function submitAddon(e) {
+    e.preventDefault();
+    const errEl = $('#addon-form-error');
+    errEl.hidden = true;
+    const lineId = $('#ln-a-line').value;
+    const addonId = $('#ln-a-id').value;
+    const name = $('#ln-a-name').value.trim();
+    if (!name) { errEl.textContent = '부가서비스명을 입력해 주세요.'; errEl.hidden = false; return; }
+    const payload = {
+      addon_name: name,
+      monthly_fee: Number(digitsOnly($('#ln-a-fee').value)) || 0,
+      joined_date: $('#ln-a-joined').value || null,
+      removable_date: $('#ln-a-removable').value || null,
+      memo: $('#ln-a-memo').value.trim() || null
+    };
+    const btn = $('#btn-addon-save');
+    btn.disabled = true;
+    try {
+      if (addonId) {
+        const { error } = await db.from('line_addons')
+          .update({ ...payload, updated_at: new Date().toISOString() })
+          .eq('id', addonId);
+        if (error) throw error;
+        toast('부가서비스를 수정했습니다.');
+      } else {
+        const { error } = await db.from('line_addons').insert({ ...payload, line_id: lineId });
+        if (error) throw error;
+        toast('부가서비스를 추가했습니다.');
+      }
+      closeModal('#line-addon-modal');
+      state.linesDirty = true;
+      await loadLines(true);
+      renderLineDetail();
+      openModal('#line-modal');
+    } catch (err) {
+      errEl.textContent = (err && err.code === '42501')
+        ? '부가서비스 저장 권한이 없습니다(RLS). Supabase `line_addons`에 insert 정책을 추가하면 저장됩니다.'
+        : lineDbError(err);
+      errEl.hidden = false;
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  async function removeAddon(addonId) {
+    try {
+      const { error } = await db.from('line_addons').update({
+        removed_at: todayYmd(),
+        is_active: false,
+        updated_at: new Date().toISOString()
+      }).eq('id', addonId);
+      if (error) throw error;
+      toast('부가서비스를 삭제 완료로 표시했습니다.');
+      state.linesDirty = true;
+      await loadLines(true);
+      renderLineDetail();
+    } catch (err) {
+      toast(lineDbError(err));
+    }
+  }
+
+  /* --- 이벤트 --- */
+  function bindLines() {
+    const view = $('#view-lines');
+    if (view) {
+      view.addEventListener('click', (e) => {
+        const f = e.target.closest('[data-ln-filter]');
+        if (f) {
+          state.linesFilter = f.dataset.lnFilter;
+          renderLines();
+          return;
+        }
+        if (e.target.closest('#btn-line-new')) { openLineForm(null); return; }
+        const item = e.target.closest('[data-ln-open]');
+        if (item) openLineDetail(item.dataset.lnOpen);
+      });
+      view.addEventListener('keydown', (e) => {
+        if (e.key !== 'Enter' && e.key !== ' ') return;
+        const item = e.target.closest('[data-ln-open]');
+        if (!item) return;
+        e.preventDefault();
+        openLineDetail(item.dataset.lnOpen);
+      });
+    }
+
+    const detail = $('#line-modal');
+    if (detail) {
+      detail.addEventListener('click', (e) => {
+        if (e.target.closest('[data-ln-close]') || e.target === detail) { closeModal('#line-modal'); return; }
+        const edit = e.target.closest('[data-ln-edit]');
+        if (edit) { closeModal('#line-modal'); openLineForm(edit.dataset.lnEdit); return; }
+        const plan = e.target.closest('[data-ln-plan-change]');
+        if (plan) { markPlanChanged(plan.dataset.lnPlanChange); return; }
+        const comp = e.target.closest('[data-ln-complete]');
+        if (comp) { openComplete(comp.dataset.lnComplete); return; }
+        const addNew = e.target.closest('[data-ln-addon-add]');
+        if (addNew) { openAddonForm(addNew.dataset.lnAddonAdd, null); return; }
+        const addEdit = e.target.closest('[data-ln-addon-edit]');
+        if (addEdit) { openAddonForm(state.lineOpenId, addEdit.dataset.lnAddonEdit); return; }
+        const addRm = e.target.closest('[data-ln-addon-remove]');
+        if (addRm) { removeAddon(addRm.dataset.lnAddonRemove); return; }
+      });
+    }
+
+    const formModal = $('#line-form-modal');
+    if (formModal) {
+      formModal.addEventListener('click', (e) => {
+        if (e.target.closest('[data-ln-close]') || e.target === formModal) { closeModal('#line-form-modal'); state.lineFormId = null; return; }
+        const t = e.target.closest('[data-ln-type]');
+        if (t) { applyLineFormType(t.dataset.lnType); return; }
+        const g = e.target.closest('[data-ln-group]');
+        if (g) {
+          const f = $('#line-form');
+          f.dataset.group = g.dataset.lnGroup;
+          segSet('#ln-f-groups', g.dataset.lnGroup);
+          $('#ln-f-net-wrap').hidden = g.dataset.lnGroup !== '알뜰';
+          if (g.dataset.lnGroup !== '알뜰' && !$('#ln-f-provider').value.trim()) {
+            $('#ln-f-provider').value = LINE_GROUP_LABEL[g.dataset.lnGroup] || '';
+          } else if (g.dataset.lnGroup === '알뜰' && LINE_GROUPS.slice(0, 3).some((k) => LINE_GROUP_LABEL[k] === $('#ln-f-provider').value.trim())) {
+            $('#ln-f-provider').value = '';
+          }
+          return;
+        }
+        const n = e.target.closest('[data-ln-net]');
+        if (n) {
+          $('#line-form').dataset.net = n.dataset.lnNet;
+          segSet('#ln-f-nets', n.dataset.lnNet);
+        }
+      });
+      const form = $('#line-form');
+      if (form) form.addEventListener('submit', submitLineForm);
+      const actEl = $('#ln-f-act');
+      if (actEl) actEl.addEventListener('change', syncMaintenance);
+      const daysEl = $('#ln-f-days');
+      if (daysEl) daysEl.addEventListener('input', syncMaintenance);
+      const phoneEl = $('#ln-f-phone');
+      if (phoneEl) phoneEl.addEventListener('blur', () => { phoneEl.value = fmtPhone(phoneEl.value); });
+    }
+
+    const addonModal = $('#line-addon-modal');
+    if (addonModal) {
+      addonModal.addEventListener('click', (e) => {
+        if (e.target.closest('[data-ln-close]') || e.target === addonModal) closeModal('#line-addon-modal');
+      });
+      const af = $('#addon-form');
+      if (af) af.addEventListener('submit', submitAddon);
+    }
+
+    const compModal = $('#line-complete-modal');
+    if (compModal) {
+      compModal.addEventListener('click', (e) => {
+        if (e.target.closest('[data-ln-close]') || e.target === compModal) closeModal('#line-complete-modal');
+      });
+      const cf = $('#complete-form');
+      if (cf) cf.addEventListener('submit', submitComplete);
+    }
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key !== 'Escape') return;
+      if (anyModalOpen()) closeAllModals();
+    });
+
+    /* 숫자 입력 콤마 표시 */
+    document.addEventListener('input', (e) => {
+      const t = e.target;
+      if (!t || !t.dataset || !t.dataset.money) return;
+      const d = digitsOnly(t.value);
+      t.value = d ? Number(d).toLocaleString('ko-KR') : '';
+    });
+  }
+
   /* ---------- 본문 ---------- */
   async function loadDetail(id, editMode) {
     showView('detail');
@@ -1476,6 +2337,12 @@
       return;
     }
 
+    /* #/lines = 회선 관리 — 러버블 yescom-game-hq /lines 의 lines·line_addons 를 그대로 쓴다 */
+    if (path === '/lines' || path === '/lines/') {
+      await loadLines();
+      return;
+    }
+
     /* #/list?q=검색어 = 상단 통합검색 결과 (제목·내용) */
     if (path === '/list' || path === '/list/') {
       const q = sanitizeTerm(params.get('q') || '');
@@ -1515,6 +2382,8 @@
     state.dashDirty = true;
     state.arch = null;
     state.archDirty = true;
+    state.lines = null;
+    state.linesDirty = true;
     showScreen('#screen-login');
   }
 
@@ -1599,6 +2468,12 @@
         if (state.view === 'archive') { loadArchive(true); return; }
         location.hash = '#/archive';
         if (location.hash === before) loadArchive();
+        return;
+      }
+      if (nav === 'lines') {
+        if (state.view === 'lines') { loadLines(true); return; }
+        location.hash = '#/lines';
+        if (location.hash === before) loadLines();
         return;
       }
       if (nav === 'all') {
@@ -1771,6 +2646,10 @@
     state.archDirty = true;
     state.post = null;
     state.posts = [];
+    state.lines = null;
+    state.linesDirty = true;
+    state.lineOpenId = null;
+    state.lineFormId = null;
     history.replaceState(null, '', location.pathname);
     showScreen('#screen-login');
   }
@@ -1788,6 +2667,7 @@
   /* ---------- 시작 ---------- */
   async function boot() {
     bind();
+    bindLines();
 
     if (!window.supabase || typeof window.supabase.createClient !== 'function') {
       showScreen('#screen-login');

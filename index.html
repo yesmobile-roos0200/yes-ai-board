@@ -6,7 +6,7 @@
 <title>예스AI 공용 게시판</title>
 <meta name="robots" content="noindex, nofollow">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%232563eb'/%3E%3Ctext x='32' y='44' font-size='34' font-family='sans-serif' font-weight='700' fill='white' text-anchor='middle'%3EY%3C/text%3E%3C/svg%3E">
-<link rel="stylesheet" href="style.css?v=20261128-7">
+<link rel="stylesheet" href="style.css?v=20261128-8">
 </head>
 <body>
 
@@ -203,6 +203,31 @@
       <p class="arch-foot" id="arch-foot"></p>
     </div>
 
+    <!-- 회선 관리 (#/lines) — 2026-11-28 러버블 yescom-game-hq /lines 통합 (lines·line_addons) -->
+    <div id="view-lines" hidden>
+      <section class="ln-summary" id="ln-summary" aria-label="회선 요약">
+        <div class="ln-sum-item"><span class="ln-sum-k">활성</span><b class="ln-sum-v" id="ln-sum-active">0</b></div>
+        <div class="ln-sum-item"><span class="ln-sum-k">약정</span><b class="ln-sum-v" id="ln-sum-contract">0</b></div>
+        <div class="ln-sum-item"><span class="ln-sum-k">가개통</span><b class="ln-sum-v" id="ln-sum-prepaid">0</b></div>
+        <div class="ln-sum-item"><span class="ln-sum-k">30일 내</span><b class="ln-sum-v" id="ln-sum-soon">0</b></div>
+        <div class="ln-sum-total"><span class="ln-sum-k">월 총 유지비</span><b class="ln-sum-v" id="ln-sum-total">0원</b><span class="ln-sum-sub" id="ln-sum-split">회선 0원 · 부가 0원</span></div>
+      </section>
+
+      <div class="ln-head">
+        <div class="ln-filters" id="ln-filters" role="group" aria-label="회선 필터">
+          <button type="button" class="ln-filter active" data-ln-filter="전체" aria-pressed="true">전체 <span class="ln-n">0</span></button>
+          <button type="button" class="ln-filter" data-ln-filter="약정" aria-pressed="false">약정 <span class="ln-n">0</span></button>
+          <button type="button" class="ln-filter" data-ln-filter="가개통" aria-pressed="false">가개통 <span class="ln-n">0</span></button>
+          <button type="button" class="ln-filter" data-ln-filter="완료" aria-pressed="false">완료 <span class="ln-n">0</span></button>
+        </div>
+        <button type="button" class="btn btn-primary btn-sm ln-add" id="btn-line-new">+ 등록</button>
+      </div>
+
+      <ul class="ln-list" id="ln-list"></ul>
+      <div class="ln-empty" id="ln-empty" hidden>등록된 회선이 없습니다. <b>+ 등록</b>으로 첫 회선을 넣어 보세요.</div>
+      <p class="ln-foot" id="ln-foot"></p>
+    </div>
+
     <!-- 목록 -->
     <div id="view-list">
       <div class="table-wrap">
@@ -358,6 +383,137 @@
   </section>
 </main>
 
+<!-- 회선 상세 (모달) -->
+<div class="ln-modal" id="line-modal" hidden role="dialog" aria-modal="true" aria-labelledby="ln-detail-title">
+  <div class="ln-sheet" id="ln-detail-sheet"></div>
+</div>
+
+<!-- 회선 등록·수정 (모달) -->
+<div class="ln-modal" id="line-form-modal" hidden role="dialog" aria-modal="true" aria-labelledby="line-form-title">
+  <div class="ln-sheet">
+    <div class="ln-sheet-head">
+      <div>
+        <h2 class="ln-sheet-title" id="line-form-title">새 회선</h2>
+        <p class="ln-sheet-sub">러버블 회선관리와 같은 DB(`lines`)에 저장됩니다.</p>
+      </div>
+      <button type="button" class="ln-x" data-ln-close aria-label="닫기">×</button>
+    </div>
+    <form class="ln-form" id="line-form" data-type="약정" data-group="" data-net="">
+      <div class="ln-fld">
+        <span>회선 종류 *</span>
+        <div class="ln-seg" id="ln-f-types">
+          <button type="button" data-ln-type="약정" class="on" aria-pressed="true">약정</button>
+          <button type="button" data-ln-type="가개통" aria-pressed="false">가개통</button>
+        </div>
+      </div>
+      <div class="ln-two">
+        <label class="ln-fld"><span>이름 *</span><input id="ln-f-owner" maxlength="40" placeholder="예: 이종훈" autocomplete="off"></label>
+        <label class="ln-fld"><span>전화번호 <span class="ln-hint" id="ln-f-phone-req">(약정은 비워도 됨)</span></span><input id="ln-f-phone" inputmode="numeric" maxlength="13" placeholder="010-0000-0000"></label>
+      </div>
+      <label class="ln-fld"><span>관리명</span><input id="ln-f-name" maxlength="60" placeholder="예: 부모님집 인터넷 / S25 가개통"></label>
+      <div class="ln-fld">
+        <span>통신사 구분 *</span>
+        <div class="ln-seg" id="ln-f-groups">
+          <button type="button" data-ln-group="SK" aria-pressed="false">SK</button>
+          <button type="button" data-ln-group="KT" aria-pressed="false">KT</button>
+          <button type="button" data-ln-group="LG" aria-pressed="false">LG</button>
+          <button type="button" data-ln-group="알뜰" aria-pressed="false">알뜰</button>
+        </div>
+      </div>
+      <div class="ln-two">
+        <label class="ln-fld"><span>실제 통신사명</span><input id="ln-f-provider" maxlength="40" placeholder="SKT / KT / LGU+ / 프리티"></label>
+        <div class="ln-fld" id="ln-f-net-wrap" hidden>
+          <span>사용망</span>
+          <div class="ln-seg" id="ln-f-nets">
+            <button type="button" data-ln-net="SK" aria-pressed="false">SK</button>
+            <button type="button" data-ln-net="KT" aria-pressed="false">KT</button>
+            <button type="button" data-ln-net="LG" aria-pressed="false">LG</button>
+          </div>
+        </div>
+      </div>
+      <div class="ln-two">
+        <label class="ln-fld"><span>월 회선요금</span><input id="ln-f-fee" inputmode="numeric" data-money placeholder="30,000"></label>
+        <label class="ln-fld"><span>사전 알림 기준 (일)</span><input id="ln-f-remind" inputmode="numeric" maxlength="3" placeholder="기본 90"></label>
+      </div>
+      <div class="ln-two">
+        <label class="ln-fld"><span id="ln-f-act-label">계약 시작일</span><input type="date" id="ln-f-act"></label>
+        <label class="ln-fld" data-ln-only="약정"><span>약정 만기일</span><input type="date" id="ln-f-end"></label>
+        <label class="ln-fld" data-ln-only="가개통"><span>개통요금제</span><input id="ln-f-plan" maxlength="40" placeholder="예: 5G 베이직"></label>
+      </div>
+      <div class="ln-two" data-ln-only="약정">
+        <label class="ln-fld"><span>관리 장소</span><input id="ln-f-loc" maxlength="40" placeholder="예: 부모님집"></label>
+        <label class="ln-fld"><span>상품</span><input id="ln-f-product" maxlength="60" placeholder="예: 인터넷1 + TV3"></label>
+      </div>
+      <div class="ln-two" data-ln-only="가개통">
+        <label class="ln-fld"><span>요금제 변경 가능일</span><input type="date" id="ln-f-change"></label>
+        <label class="ln-fld"><span>회선 유지일수 (일)</span><input id="ln-f-days" inputmode="numeric" maxlength="4" placeholder="예: 180"></label>
+      </div>
+      <label class="ln-fld" data-ln-only="가개통"><span>회선 유지 마감일 <span class="ln-hint">(유지일수 넣으면 자동 계산)</span></span><input type="date" id="ln-f-maint"></label>
+      <div class="ln-two">
+        <label class="ln-fld"><span>혜택·수수료</span><input id="ln-f-benefit" inputmode="numeric" data-money placeholder="150,000"></label>
+        <label class="ln-fld"><span>혜택 설명</span><input id="ln-f-benefitnote" maxlength="60" placeholder="예: 상품권"></label>
+      </div>
+      <label class="ln-fld"><span>메모</span><textarea id="ln-f-memo" rows="2" maxlength="500"></textarea></label>
+      <p class="form-error" id="ln-form-error" hidden></p>
+      <div class="ln-sheet-foot">
+        <button type="button" class="ln-btn" data-ln-close>취소</button>
+        <button type="submit" class="ln-btn blue" id="btn-line-save">저장</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- 부가서비스 등록·수정 (모달) -->
+<div class="ln-modal" id="line-addon-modal" hidden role="dialog" aria-modal="true" aria-labelledby="addon-form-title">
+  <div class="ln-sheet">
+    <div class="ln-sheet-head">
+      <div>
+        <h2 class="ln-sheet-title" id="addon-form-title">부가서비스 추가</h2>
+        <p class="ln-sheet-sub" id="addon-form-sub"></p>
+      </div>
+      <button type="button" class="ln-x" data-ln-close aria-label="닫기">×</button>
+    </div>
+    <form class="ln-form" id="addon-form">
+      <input type="hidden" id="ln-a-line">
+      <input type="hidden" id="ln-a-id">
+      <label class="ln-fld"><span>부가서비스명 *</span><input id="ln-a-name" maxlength="60" placeholder="예: 스마트기기 보험"></label>
+      <div class="ln-two">
+        <label class="ln-fld"><span>월 요금</span><input id="ln-a-fee" inputmode="numeric" data-money placeholder="5,500"></label>
+        <label class="ln-fld"><span>가입일</span><input type="date" id="ln-a-joined"></label>
+      </div>
+      <label class="ln-fld"><span>삭제 가능일</span><input type="date" id="ln-a-removable"></label>
+      <label class="ln-fld"><span>메모</span><input id="ln-a-memo" maxlength="120"></label>
+      <p class="form-error" id="addon-form-error" hidden></p>
+      <div class="ln-sheet-foot">
+        <button type="button" class="ln-btn" data-ln-close>취소</button>
+        <button type="submit" class="ln-btn blue" id="btn-addon-save">저장</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- 회선 종료 처리 (모달) -->
+<div class="ln-modal" id="line-complete-modal" hidden role="dialog" aria-modal="true" aria-labelledby="complete-form-title">
+  <div class="ln-sheet">
+    <div class="ln-sheet-head">
+      <div>
+        <h2 class="ln-sheet-title" id="complete-form-title">종료 처리</h2>
+        <p class="ln-sheet-sub">상태를 <b>완료</b>로 바꿉니다. 목록의 <b>완료</b> 필터에서 다시 볼 수 있습니다.</p>
+      </div>
+      <button type="button" class="ln-x" data-ln-close aria-label="닫기">×</button>
+    </div>
+    <form class="ln-form" id="complete-form">
+      <input type="hidden" id="ln-c-line">
+      <label class="ln-fld"><span>처리 결과 (선택)</span><textarea id="ln-c-note" rows="2" maxlength="300" placeholder="예: 번호이동 완료 / 재약정 완료"></textarea></label>
+      <p class="form-error" id="complete-form-error" hidden></p>
+      <div class="ln-sheet-foot">
+        <button type="button" class="ln-btn" data-ln-close>취소</button>
+        <button type="submit" class="ln-btn warn" id="btn-complete-save">종료 처리</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <footer class="site-foot">
   <span>예스통신 · 이종훈 전용 비공개 게시판</span>
 </footer>
@@ -365,6 +521,6 @@
 <div class="toast" id="toast" hidden></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="app.js?v=20261128-7"></script>
+<script src="app.js?v=20261128-8"></script>
 </body>
 </html>
