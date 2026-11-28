@@ -3357,18 +3357,10 @@
       document.body.insertBefore(bar, document.body.firstChild);
     }
 
-    const mark = $('.brand-mark');
-    if (mark) {
-      mark.classList.add('is-demo');
-      const letter = mark.querySelector('.brand-mark-letter');
-      if (letter) letter.textContent = '샘';
-    }
-    const name = $('.brand-name');
-    if (name) name.textContent = '샘플AI';
-    const sub = $('.brand-sub');
-    if (sub) sub.textContent = 'DEMO BOARD';
     const brand = $('.brand');
     if (brand) brand.setAttribute('aria-label', '샘플AI 체험용 대시보드');
+    const logo = $('.brand-logo');
+    if (logo) logo.alt = '샘플AI';
 
     const foot = $('.site-foot');
     if (foot) foot.innerHTML = '<span>샘플통신 · 체험용 데모 게시판 (가상 데이터)</span>';
