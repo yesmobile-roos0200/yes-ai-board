@@ -205,7 +205,7 @@ alter table public.ai_board_posts
   add column if not exists owner    text,
   add column if not exists due_date date;
 
-do $
+do $$
 begin
   if not exists (select 1 from pg_constraint where conname = 'ai_board_posts_status_chk') then
     alter table public.ai_board_posts add constraint ai_board_posts_status_chk
@@ -215,7 +215,7 @@ begin
     alter table public.ai_board_posts add constraint ai_board_posts_priority_chk
       check (priority is null or priority between 1 and 3);
   end if;
-end $;
+end $$;
 
 create index if not exists ai_board_posts_status_idx on public.ai_board_posts (status, due_date);
 

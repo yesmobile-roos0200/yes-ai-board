@@ -681,6 +681,7 @@
 
     renderBoardTitle(term);
     const counts = await fetchCommentCounts(state.posts.map((p) => p.id));
+    if (state.listKey !== key) return; /* 그새 다른 페이지·검색으로 바뀌었으면 그리지 않는다 (2026-11-28) */
 
     const rows = state.posts.map((p) => {
       const cmt = counts.get(p.id) || 0;
@@ -1007,7 +1008,7 @@
         const summ = actSummary(lastC.content, done);
         sub += `<span class="act-count">댓글 ${cm.length}</span>${badge(lastC.author || '?')}`;
         if (done) sub += '<span class="act-done">✓ 완료</span>';
-        if (summ) sub += `<span class="act-snip">${esc(mask(snippet(summ, 70)))}</span>`;
+        if (summ) sub += `<span class="act-snip">${esc(snippet(mask(summ), 70))}</span>`;
       }
       return `<li class="act-item${isNew ? ' is-new' : ''}">
         <a class="act-link" href="#/p/${t.p.id}">
@@ -1998,6 +1999,7 @@
     $('#btn-delete').hidden = true;
 
     const { data, error } = await db.from('ai_board_posts').select('*').eq('id', id).maybeSingle();
+    if (state.postId !== id) return; /* 다른 글로 넘어간 뒤 늦게 온 응답은 버린다 (2026-11-28) */
     if (error) {
       if (isAuthError(error)) return forceLogin();
       if (isSetupError(error)) {
@@ -2037,12 +2039,14 @@
     $('#comment-author').value = AUTHORS.includes(savedAuthor) ? savedAuthor : AUTHORS[0];
 
     await loadComments(id);
+    if (state.postId !== id) return;
     if (editMode) openWriteForm(data);
   }
 
   async function loadComments(postId) {
     const { data, error } = await db.from('ai_board_comments')
       .select('*').eq('post_id', postId).order('created_at', { ascending: true });
+    if (state.postId !== postId) return; /* 늦게 온 다른 글 댓글은 버린다 (2026-11-28) */
     if (error) {
       if (isAuthError(error)) return forceLogin();
       $('#comment-list').innerHTML = `<li class="comment-item muted">댓글을 불러오지 못했습니다.</li>`;
@@ -2291,6 +2295,7 @@
       loadPosts();
       return;
     }
+    state.dirty = true; /* 목록 화면에서 검색해도 route가 '같은 화면'으로 보고 건너뛰지 않게 (2026-11-28) */
     location.hash = target;
   }
 
@@ -2430,7 +2435,7 @@
       const v = canonicalAuthor(e.target.value);
       if (v && AUTHORS.includes(v)) {
         localStorage.setItem(DEFAULT_AUTHOR_KEY, v);
-        $('#write-author').value = v;
+        if (!state.editing) $('#write-author').value = v; /* 수정 중인 글의 작성자는 그대로 둔다 (2026-11-28) */
         $('#comment-author').value = v;
         toast(`기본 작성자를 '${v}'${josaRo(v)} 정했습니다.`);
       } else {
