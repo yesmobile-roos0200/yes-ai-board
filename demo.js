@@ -347,6 +347,13 @@
   ];
 
   /* ---------- 가짜 DB (Supabase 클라이언트와 같은 모양) ---------- */
+  /* 실제 테이블의 기본값 — insert 때 적지 않은 칸이 null/undefined로 남아
+     '완료'로 잘못 보이는 일을 막는다 (lines.is_active 기본 true 등). */
+  const INSERT_DEFAULTS = {
+    lines: { status: null, is_active: true, completed_at: null, result_note: null },
+    line_addons: { is_active: true, removed_at: null, memo: null },
+    issues: { is_active: true, completed_at: null, result_note: null }
+  };
   function createClient() {
     const store = {
       ai_board_posts: posts.map((p) => ({ ...p, user_id: DEMO_USER.id })),
@@ -464,8 +471,11 @@
       doInsert(rows) {
         const list = Array.isArray(this.payload) ? this.payload : [this.payload];
         const nowIso = new Date().toISOString();
+        const defaults = INSERT_DEFAULTS[this.table] || null;
         const created = list.map((p) => {
-          const row = { created_at: nowIso, ...p };
+          const row = defaults ? { ...defaults } : {};
+          row.created_at = nowIso;
+          Object.assign(row, p);
           if (row.id == null) row.id = (seq[this.table] = (seq[this.table] || 1000) + 1);
           if (row.updated_at == null) row.updated_at = row.created_at;
           if (row.user_id == null && this.table.startsWith('ai_board')) row.user_id = DEMO_USER.id;

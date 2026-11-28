@@ -3289,7 +3289,8 @@
       bar.id = 'demo-bar';
       bar.setAttribute('role', 'note');
       bar.innerHTML = '<span class="demo-bar-tag">🧪 체험용 데모</span>' +
-        '<span class="demo-bar-text">가상 샘플 데이터로 동작 중 · 실제 게시판 데이터와 분리되어 있습니다</span>';
+        '<span class="demo-bar-text"><span class="demo-bar-long">가상 샘플 데이터로 동작 중 · 실제 게시판 데이터와 분리되어 있습니다</span>' +
+        '<span class="demo-bar-short">가상 샘플 데이터 · 실제 데이터와 분리</span></span>';
       document.body.insertBefore(bar, document.body.firstChild);
     }
 
@@ -3305,6 +3306,10 @@
 
     const who = $('#who-email');
     if (who) who.textContent = '체험 모드';
+
+    /* 회선 등록 폼 placeholder에 실제 이름이 남지 않게 데모에서는 가상 이름으로 */
+    const ownerInput = $('#ln-f-owner');
+    if (ownerInput) ownerInput.placeholder = '예: 홍길동';
 
     const menuEmail = $('#menu-email');
     if (menuEmail) {
