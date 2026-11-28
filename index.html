@@ -6,7 +6,7 @@
 <title>예스AI 공용 게시판</title>
 <meta name="robots" content="noindex, nofollow">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%232563eb'/%3E%3Ctext x='32' y='44' font-size='34' font-family='sans-serif' font-weight='700' fill='white' text-anchor='middle'%3EY%3C/text%3E%3C/svg%3E">
-<link rel="stylesheet" href="style.css?v=20261128-18">
+<link rel="stylesheet" href="style.css?v=20261128-19">
 </head>
 <body>
 
@@ -16,12 +16,6 @@
       <span class="brand-mark">예</span>
       <span class="brand-name">예스AI</span>
     </a>
-    <form class="top-search" id="top-search-form" role="search" hidden>
-      <input type="search" id="top-search-input" placeholder="통합 검색" aria-label="통합 검색" autocomplete="off" enterkeyhint="search">
-      <button type="submit" class="top-search-btn" aria-label="검색">
-        <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" d="M10.5 4a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13Zm5 11.5L20 20"/></svg>
-      </button>
-    </form>
     <div class="topbar-right" id="topbar-user" hidden>
       <span class="who" id="who-email" hidden></span>
       <button type="button" class="btn btn-primary btn-top-write" id="btn-write" aria-label="글쓰기"><span class="btn-top-write-plus" aria-hidden="true">+</span> 글쓰기</button>
@@ -42,7 +36,34 @@
       <button type="button" class="btn btn-ghost menu-logout" id="btn-logout">로그아웃</button>
     </div>
   </div>
+
+  <!-- 가로 꽉 찬 통합 검색 (2026-11-28 펨코 스타일 개편) -->
+  <div class="top-search-strip" id="top-search-strip" hidden>
+    <form class="top-search" id="top-search-form" role="search">
+      <input type="search" id="top-search-input" placeholder="제목·내용 통합검색" aria-label="제목·내용 통합검색" autocomplete="off" enterkeyhint="search">
+      <button type="submit" class="top-search-btn" aria-label="검색">
+        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" d="M10.5 4a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13Zm5 11.5L20 20"/></svg>
+      </button>
+    </form>
+  </div>
 </header>
+
+<!-- 칩 메뉴판 (2026-11-28 개편) — 대시보드는 펼침, 안쪽 화면은 접힘 + `메뉴 ▾` 토글 -->
+<nav class="navband" id="tabs" aria-label="게시판 보기" hidden>
+  <div class="navband-inner">
+    <div class="navband-top">
+      <span class="nav-current" id="nav-current">빠른 메뉴</span>
+      <button type="button" class="nav-toggle" id="btn-nav-toggle" aria-expanded="true" aria-controls="tabs-body">
+        <span class="nav-toggle-k" id="nav-toggle-label">접기</span>
+        <svg class="nav-toggle-caret" viewBox="0 0 24 24" width="12" height="12" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" d="m6 9 6 6 6-6"/></svg>
+      </button>
+    </div>
+    <div class="nav-body" id="tabs-body">
+      <div class="chips chips-main" id="tabs-main" role="group" aria-label="주요 화면"></div>
+      <div class="chips chips-cats" id="tabs-cats" role="group" aria-label="말머리"></div>
+    </div>
+  </div>
+</nav>
 
 <main class="wrap">
 
@@ -115,11 +136,6 @@
 
   <!-- 게시판 -->
   <section class="screen screen-board" id="screen-board" hidden>
-
-    <nav class="tabbar" id="tabs" aria-label="게시판 보기">
-      <div class="tabs tabs-main" id="tabs-main" role="tablist" aria-label="화면"></div>
-      <div class="tabs tabs-cats" id="tabs-cats" role="tablist" aria-label="말머리"></div>
-    </nav>
 
     <!-- 목록·자료실 제목 줄 (2026-11-28: 검색창은 상단 헤더 통합검색으로 이동) -->
     <div class="board-toolbar">
@@ -672,7 +688,7 @@
 <div class="toast" id="toast" hidden></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="demo.js?v=20261128-18"></script>
-<script src="app.js?v=20261128-18"></script>
+<script src="demo.js?v=20261128-19"></script>
+<script src="app.js?v=20261128-19"></script>
 </body>
 </html>

@@ -134,6 +134,7 @@
     member: false,
     email: '',
     view: 'list',
+    navOpen: false,       // 칩 메뉴판 펼침 여부 (2026-11-28 펨코 스타일 — 대시보드만 기본 펼침)
     category: ALL,
     q: '',
     page: 1,
@@ -495,10 +496,53 @@
     $('#topbar-user').hidden = !state.session;
     const writeBtn = $('#btn-write');
     if (writeBtn) writeBtn.hidden = id !== '#screen-board';
-    const searchForm = $('#top-search-form');
-    if (searchForm) searchForm.hidden = id !== '#screen-board';
+    const strip = $('#top-search-strip');
+    if (strip) strip.hidden = id !== '#screen-board';
     if (!state.session) setMenu(false);
+    syncNav();
     syncTopSearch();
+  }
+
+  /* ---------- 칩 메뉴판 (2026-11-28 종훈 님 요청: 펨코 모바일 스타일 상단 개편) ----------
+     · 대시보드(#/)는 칩이 펼쳐진 상태, 안쪽 화면은 접힌 상태 + `메뉴 ▾` 토글로 펼친다.
+     · 칩 줄은 flex-wrap 이라 `중고관리`·`월간예스통신` 같은 칸을 나중에 더해도 줄바꿈으로 늘어난다. */
+  function navLabel() {
+    if (state.view === 'list') {
+      if (state.q) return `검색 · ${state.q}`;
+      return state.category === ALL ? '전체 글' : state.category;
+    }
+    if (state.view === 'archive') return '결산·자료실';
+    if (state.view === 'lines') return '회선';
+    if (state.view === 'issues') return '일정';
+    if (state.view === 'detail') return '글 읽기';
+    if (state.view === 'write') return '글쓰기';
+    return '대시보드';
+  }
+
+  function setNav(open) {
+    state.navOpen = !!open;
+    const nav = $('#tabs');
+    if (!nav) return;
+    nav.classList.toggle('is-open', state.navOpen);
+    const body = $('#tabs-body');
+    if (body) body.hidden = !state.navOpen;
+    const btn = $('#btn-nav-toggle');
+    if (btn) btn.setAttribute('aria-expanded', state.navOpen ? 'true' : 'false');
+    const k = $('#nav-toggle-label');
+    if (k) k.textContent = state.navOpen ? '접기' : '메뉴';
+    const cur = $('#nav-current');
+    if (cur) cur.textContent = state.navOpen ? '빠른 메뉴' : navLabel();
+  }
+
+  function syncNav() {
+    const nav = $('#tabs');
+    if (!nav) return;
+    const board = $('#screen-board');
+    const boardOn = !!(board && !board.hidden);
+    const hide = !boardOn || state.view === 'write';
+    nav.hidden = hide;
+    if (hide) { setNav(false); return; }
+    setNav(state.view === 'dashboard');
   }
 
   function showView(v) {
@@ -514,7 +558,7 @@
     $('#view-write').hidden = v !== 'write';
     const bar = $('.board-toolbar');
     if (bar) bar.hidden = !(v === 'list' || v === 'archive');
-    $('#tabs').hidden = v === 'write';
+    syncNav();
     if (v === 'archive') {
       $('#board-title').innerHTML = '📚 결산·자료실 <span class="muted">쌓아 두고 다시 보는 자료</span>';
     } else if (v === 'list' && state.loaded) {
@@ -593,29 +637,30 @@
     const ok = await checkMembership();
     if (!ok) return;
     showScreen('#screen-board');
+    syncNav();
     buildTabs();
     fillSelects();
     route();
   }
 
   /* ---------- 목록 ---------- */
-  /* 탭은 두 줄로 나눠 만든다 — 주요 화면(전체 글·결산·자료실) / 말머리.
-     2026-11-27: 모바일 390px에서 탭이 넘치지 않도록 주요 화면은 한 줄 고정, 말머리는 3열×2줄.
-     2026-11-28: `대시보드` 탭 삭제(브랜드 `예스AI`를 누르면 대시보드) · `📚` 이모지 제거 → 주요 화면 2개. */
+  /* 탭은 두 줄로 나눠 만든다 — 주요 화면(전체 글·결산·자료실·회선·일정) / 말머리.
+     2026-11-28: 펨코 모바일 스타일 칩 그리드로 바꿈 (flex-wrap · 둥근 칩). */
   function buildTabs() {
     const listOn = state.view === 'list' && state.category === ALL;
     const archOn = state.view === 'archive';
     const linesOn = state.view === 'lines';
     const issOn = state.view === 'issues';
+    /* 2026-11-28 펨코 스타일: 윗줄 = 큰 기능(진한 파란 칩), 아랫줄 = 말머리(연한 테두리 칩) */
     const mainParts = [
-      `<button type="button" class="tab${listOn ? ' active' : ''}" role="tab" data-nav="all" aria-selected="${listOn}">전체 글</button>`,
-      `<button type="button" class="tab tab-arch${archOn ? ' active' : ''}" role="tab" data-nav="archive" aria-selected="${archOn}">결산·자료실</button>`,
-      `<button type="button" class="tab tab-lines${linesOn ? ' active' : ''}" role="tab" data-nav="lines" aria-selected="${linesOn}">회선</button>`,
-      `<button type="button" class="tab tab-iss${issOn ? ' active' : ''}" role="tab" data-nav="issues" aria-selected="${issOn}">일정</button>`
-    ];
+      { key: 'all', label: '전체 글', on: listOn },
+      { key: 'archive', label: '결산·자료실', on: archOn },
+      { key: 'lines', label: '회선', on: linesOn },
+      { key: 'issues', label: '일정', on: issOn }
+    ].map((d) => `<button type="button" class="chip chip-main${d.on ? ' on' : ''}" data-nav="${d.key}" aria-pressed="${d.on}">${d.label}</button>`);
     const catParts = CATEGORIES.map((c) => {
       const on = state.view === 'list' && state.category === c;
-      return `<button type="button" class="tab${on ? ' active' : ''}" role="tab" data-nav="${esc(c)}" aria-selected="${on}">${esc(c)}</button>`;
+      return `<button type="button" class="chip chip-cat${on ? ' on' : ''}" data-nav="${esc(c)}" aria-pressed="${on}">${esc(c)}</button>`;
     });
     const mainEl = $('#tabs-main');
     const catEl = $('#tabs-cats');
@@ -625,6 +670,8 @@
     } else {
       $('#tabs').innerHTML = mainParts.concat(catParts).join('');
     }
+    const cur = $('#nav-current');
+    if (cur) cur.textContent = state.navOpen ? '빠른 메뉴' : navLabel();
   }
 
   /* 옛 이름(이지실버·예스통신·예스총괄)으로 쓴 글을 수정할 때: 선택지에 그 이름이 없으면
@@ -3053,8 +3100,10 @@
     });
 
     $('#tabs').addEventListener('click', (e) => {
-      const btn = e.target.closest('.tab');
+      const btn = e.target.closest('[data-nav]');
       if (!btn) return;
+      /* 안쪽 화면에서 칩을 골랐으면 메뉴판을 다시 접어 본문을 넓게 본다 */
+      if (state.view !== 'dashboard') setNav(false);
       const nav = btn.dataset.nav;
       const before = location.hash;
       if (nav === 'archive') {
@@ -3114,6 +3163,10 @@
       const val = $('#top-search-input').value;
       if (val.trim() === '' && state.q) runSearch('');
     });
+
+    /* 칩 메뉴판 `메뉴 ▾` / `접기 ▴` 토글 (2026-11-28) */
+    const navToggle = $('#btn-nav-toggle');
+    if (navToggle) navToggle.addEventListener('click', () => setNav(!state.navOpen));
 
     $('#pager').addEventListener('click', (e) => {
       const btn = e.target.closest('button[data-page]');

@@ -31,39 +31,79 @@ button{font-family:inherit}
 code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.92em;background:#f0f2f7;border-radius:4px;padding:1px 5px}
 pre{margin:0;white-space:pre-wrap;word-break:break-word}
 
-/* 상단바 */
+/* 상단바 — 2026-11-28 종훈 님 요청: 펨코 모바일 스타일 파란 헤더 */
 .topbar{
-  position:sticky;top:0;z-index:30;background:#fff;border-bottom:1px solid var(--line);
+  position:sticky;top:0;z-index:30;
+  background:linear-gradient(180deg,#3373d8,#2563eb 62%,#1f57cf);
 }
 .topbar-inner{
-  max-width:1080px;margin:0 auto;padding:12px 18px;position:relative;
-  display:flex;align-items:center;justify-content:flex-start;gap:12px;
+  max-width:1080px;margin:0 auto;padding:9px 18px;position:relative;
+  display:flex;align-items:center;justify-content:flex-start;gap:10px;
 }
-.brand{display:flex;align-items:center;gap:8px;min-width:0;color:inherit;text-decoration:none;flex:none}
+.brand{display:flex;align-items:center;gap:8px;min-width:0;color:#fff;text-decoration:none;flex:none}
 .brand:hover{text-decoration:none}
 .brand-mark{
   display:inline-flex;align-items:center;justify-content:center;
   width:28px;height:28px;border-radius:9px;background:var(--accent);color:#fff;
   font-weight:800;font-size:15px;letter-spacing:-.5px;flex:none;
 }
+.topbar .brand-mark{background:#fff;color:var(--accent);box-shadow:0 1px 3px rgba(9,26,60,.22)}
 .brand-mark-lg{width:46px;height:46px;border-radius:13px;font-size:24px}
-.brand-name{font-size:16px;font-weight:800;letter-spacing:-.4px;white-space:nowrap;color:var(--ink)}
-/* 상단 통합검색 (2026-11-28) — 헤더 한 줄, 남는 폭을 모두 쓴다 */
-.top-search{position:relative;display:flex;align-items:center;flex:1 1 auto;min-width:0}
+.brand-name{font-size:17px;font-weight:800;letter-spacing:-.5px;white-space:nowrap;color:#fff}
+/* 가로 꽉 찬 통합검색 — 헤더 바로 아래 한 줄 (2026-11-28) */
+.top-search-strip{background:#e8edf6;padding:8px 18px;border-bottom:1px solid #dae2ef}
+.top-search{position:relative;display:flex;align-items:center;width:100%;max-width:1044px;margin:0 auto}
 .top-search input{
-  width:100%;min-width:0;height:33px;border:1px solid var(--line);border-radius:8px;background:#f8f9fc;
-  padding:0 34px 0 11px;font-size:13.5px;font-family:inherit;color:var(--ink);
+  width:100%;min-width:0;height:38px;border:1px solid #c8d3e5;border-radius:7px;background:#fff;
+  padding:0 44px 0 13px;font-size:14.5px;font-family:inherit;color:var(--ink);
+  box-shadow:inset 0 1px 2px rgba(16,24,40,.05);
 }
-.top-search input:focus{outline:none;background:#fff;border-color:#b9c8ee;box-shadow:0 0 0 3px rgba(37,99,235,.08)}
+.top-search input::placeholder{color:#8d98ab}
+.top-search input:focus{outline:none;border-color:#8fb0ea;box-shadow:0 0 0 3px rgba(37,99,235,.12)}
 .top-search input::-webkit-search-cancel-button{-webkit-appearance:none}
 .top-search-btn{
-  position:absolute;right:2px;width:29px;height:29px;border:0;background:none;color:var(--muted);
+  position:absolute;right:4px;width:34px;height:31px;border:0;background:none;color:#4d5a72;
   display:flex;align-items:center;justify-content:center;cursor:pointer;border-radius:6px;
 }
-.top-search-btn:hover{color:var(--accent)}
+.top-search-btn:hover{color:var(--accent);background:#f1f5fd}
+
+/* 칩 메뉴판 — 대시보드는 펼침 / 안쪽 화면은 접힘 + `메뉴 ▾` 토글 (2026-11-28) */
+.navband{background:#eaf1fb;border-bottom:1px solid #d7e2f3}
+.navband-inner{max-width:1080px;margin:0 auto;padding:6px 18px 10px}
+.navband-top{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:24px}
+.nav-current{
+  min-width:0;font-size:12.2px;font-weight:700;color:#5a6c8b;letter-spacing:-.2px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.nav-toggle{
+  flex:none;display:inline-flex;align-items:center;gap:4px;height:25px;padding:0 9px;
+  border:1px solid #c3d3ee;border-radius:6px;background:#fff;color:#2c4a7c;
+  font-size:11.8px;font-weight:700;font-family:inherit;cursor:pointer;line-height:1;letter-spacing:-.2px;
+}
+.nav-toggle:hover{background:#f4f8ff;border-color:#a9c2e8}
+.nav-toggle-caret{transition:transform .15s ease}
+.navband.is-open .nav-toggle-caret{transform:rotate(180deg)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chips-main{margin-top:6px}
+.chips-cats{margin-top:8px;padding-top:9px;border-top:1px solid #dbe6f6}
+.chip{
+  display:inline-flex;align-items:center;justify-content:center;
+  height:34px;padding:0 13px;border-radius:7px;border:1px solid transparent;
+  font-size:13.6px;font-weight:700;font-family:inherit;line-height:1;
+  cursor:pointer;white-space:nowrap;letter-spacing:-.2px;
+  transition:background .12s,border-color .12s,color .12s;
+}
+.chip-main{background:#2f6fdd;color:#fff;border-color:#2a63c9;box-shadow:0 1px 2px rgba(23,60,140,.16)}
+.chip-main:hover{background:#2059cf;border-color:#1d50bb}
+.chip-main.on{background:#173f96;border-color:#123685;box-shadow:inset 0 1px 0 rgba(255,255,255,.16),0 1px 2px rgba(16,40,100,.2)}
+.chip-cat{background:#fff;border-color:#ccd8ea;color:#465570}
+.chip-cat:hover{background:#f7faff;border-color:#9db9e6;color:#1d4ed8}
+.chip-cat.on{background:#e7f0ff;border-color:#7ba6ee;color:#1d47b8;font-weight:800}
+
 .topbar-right{display:flex;align-items:center;gap:7px;min-width:0;flex:none;margin-left:auto}
-.btn-top-menu{width:30px;height:30px;padding:0;border-radius:7px;color:var(--ink-2);flex:none}
-#btn-menu{height:30px;padding:0;width:30px}
+.btn-top-menu{width:30px;height:30px;padding:0;border-radius:7px;color:#fff;flex:none}
+#btn-menu{height:30px;padding:0;width:30px;border:0;background:rgba(255,255,255,.16);color:#fff}
+#btn-menu:hover{background:rgba(255,255,255,.3)}
 #btn-menu svg{flex:none;display:block}
 /* ☰ 메뉴 패널 — 로그인 계정 · 기본 작성자 · 로그아웃 (2026-11-28) */
 .menu-pop{
@@ -83,7 +123,7 @@ pre{margin:0;white-space:pre-wrap;word-break:break-word}
 .menu-hint{margin:-5px 0 10px;font-size:11.2px;color:var(--muted);line-height:1.5}
 .menu-logout{width:100%;height:34px;justify-content:center;font-size:13px;color:var(--danger);border-color:#eccaca}
 .menu-logout:not(:disabled):hover{background:#fdf1f1;border-color:#f0cccc}
-.who{font-size:12.5px;color:var(--muted);max-width:190px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.who{font-size:12.5px;color:rgba(255,255,255,.74);max-width:190px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
 /* 공통 */
 .wrap{max-width:1080px;margin:0 auto;padding:18px 18px 48px}
@@ -150,23 +190,8 @@ pre{margin:0;white-space:pre-wrap;word-break:break-word}
 .dev-detail summary{cursor:pointer}
 .dev-detail pre{margin-top:8px;background:#f7f8fb;border-radius:8px;padding:10px;font-size:11.8px;color:#5b6476}
 
-/* 탭 — 두 줄 그룹: 주요 화면(전체 글·결산·자료실) + 말머리 (2026-11-28 대시보드 탭 삭제) */
-.tabbar{display:flex;align-items:stretch;margin-bottom:0}
-.tabs{
-  display:flex;gap:2px;overflow-x:auto;scrollbar-width:none;
-  border-bottom:1px solid var(--line);margin-bottom:0;background:transparent;
-}
-.tabs::-webkit-scrollbar{display:none}
-.tabs-main{flex:none}
-.tabs-cats{flex:1 1 auto;min-width:0;border-left:1px solid var(--line-soft);margin-left:8px;padding-left:6px}
-.tab{
-  flex:none;border:0;background:none;padding:12px 15px 11px;font-size:14.5px;font-weight:600;
-  color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap;
-}
-.tab:hover{color:var(--ink-2)}
-.tab.active{color:var(--accent);border-bottom-color:var(--accent)}
-.tab-arch{font-weight:700}
-.tab .cnt{font-size:11.5px;color:#a4acbc;font-weight:600;margin-left:3px}
+/* 탭 — 2026-11-28 펨코 스타일 칩 메뉴판으로 교체 (CSS는 상단 `.navband`/`.chip`)
+   예전 `.tabbar`·`.tabs`·`.tab` 규칙은 쓰지 않게 되어 지웠다. */
 
 /* 툴바 */
 .board-toolbar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:12px 0 10px;flex-wrap:wrap}
@@ -184,8 +209,9 @@ pre{margin:0;white-space:pre-wrap;word-break:break-word}
   display:flex;align-items:center;justify-content:center;cursor:pointer;border-radius:6px;
 }
 .search-btn:hover{color:var(--accent)}
-.btn-top-write{height:30px;padding:0 11px;border-radius:7px;font-size:12.8px;font-weight:700;gap:4px;letter-spacing:-.2px}
-.btn-top-write-plus{font-size:14px;line-height:1;font-weight:700;margin-top:-1px}
+.btn-top-write{height:30px;padding:0 11px;border-radius:6px;font-size:12.8px;font-weight:800;gap:4px;letter-spacing:-.3px;background:#fff !important;border-color:#fff !important;color:#1d4ed8 !important;box-shadow:0 1px 3px rgba(9,26,60,.18)}
+.btn-top-write:not(:disabled):hover{background:#eef4ff !important;border-color:#eef4ff !important;color:#12379c !important}
+.btn-top-write-plus{font-size:14.5px;line-height:1;font-weight:800;margin-top:-1px}
 
 /* 표 */
 .table-wrap{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden;box-shadow:var(--shadow)}
@@ -536,18 +562,12 @@ pre{margin:0;white-space:pre-wrap;word-break:break-word}
 
 /* 모바일 */
 @media (max-width:720px){
-  /* 탭: 주요 화면 4개 한 줄 + 말머리 6개 3열×2줄 (2026-11-28 — 일정 탭 추가) */
-  .tabbar{flex-direction:column}
-  .tabs-main{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));overflow:visible;border-left:0;margin-left:0;padding-left:0}
-  .tabs-main .tab{padding:11px 4px 10px;font-size:13.4px;text-align:center;justify-content:center}
-  .tabs-cats{
-    display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;
-    overflow:visible;border-left:0;margin-left:0;padding:0;
-  }
-  .tabs-cats .tab{
-    display:flex;align-items:center;justify-content:center;min-height:44px;
-    padding:11px 2px 10px;font-size:14px;letter-spacing:-.2px;
-  }
+  /* 칩 메뉴판 — 390px에서 넘침 없이 줄바꿈 (2026-11-28 펨코 스타일) */
+  .navband-inner{padding:6px 12px 10px}
+  .navband-top{min-height:23px}
+  .chips{gap:6px}
+  .chip{height:33px;padding:0 12px;font-size:13.2px;border-radius:6px}
+  .chips-cats{margin-top:7px;padding-top:8px}
   /* 결산·자료실 — 뽐뿌식 얇은 구분선 목록 (2026-11-28) */
   .arch-head{gap:6px;margin-bottom:8px}
   .arch-filters{gap:5px;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;max-width:100%}
@@ -569,16 +589,17 @@ pre{margin:0;white-space:pre-wrap;word-break:break-word}
   .arch-meta-r{color:#98a1b2;font-size:12px}
   .act-link{padding:12px 13px 12px 20px}
   .wrap{padding:12px 12px 40px}
-  /* 헤더 한 줄: [예] 예스AI · 통합검색 · + 글쓰기 · ☰ (2026-11-28) */
-  .topbar-inner{padding:9px 12px;gap:6px}
-  .brand{gap:6px}
-  .brand-mark{width:26px;height:26px;border-radius:8px;font-size:14px}
-  .brand-name{font-size:13.5px;letter-spacing:-.5px}
+  /* 헤더: [예] 예스AI · + 글쓰기 · ☰ (2026-11-28 펨코 스타일 — 검색은 아래 한 줄로 분리) */
+  .topbar-inner{padding:8px 12px;gap:8px}
+  .brand{gap:7px}
+  .brand-mark{width:28px;height:28px;border-radius:8px;font-size:15px}
+  .brand-name{font-size:16px;letter-spacing:-.5px}
+  .top-search-strip{padding:7px 12px}
   .top-search{max-width:none}
-  .top-search input{height:30px;font-size:12.8px;padding:0 31px 0 9px}
-  .top-search-btn{width:26px;height:26px}
+  .top-search input{height:36px;font-size:13.6px;padding:0 40px 0 11px}
+  .top-search-btn{width:32px;height:30px}
   .who{display:none}
-  .btn-top-write{height:28px;padding:0 8px;font-size:11.8px;gap:2px}
+  .btn-top-write{height:29px;padding:0 10px;font-size:12.2px;gap:2px}
     .btn-top-menu{width:28px;height:28px;border-radius:7px}
   #btn-menu{width:28px;height:28px}
   .menu-pop{right:10px;width:min(268px,calc(100vw - 20px));padding:12px}
