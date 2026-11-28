@@ -1089,15 +1089,16 @@
     if (dataPane) dataPane.hidden = tab !== 'data';
     if (histPane) histPane.hidden = tab !== 'history';
     const dataN = $('#arch-mode-data-n');
-    if (dataN) dataN.textContent = String(state.arch && state.arch.posts ? state.arch.posts.length : 0);
+    if (dataN) dataN.textContent = state.arch ? String(state.arch.posts ? state.arch.posts.length : 0) : '…';
     const histN = $('#arch-mode-hist-n');
-    if (histN) histN.textContent = String(issueStats().done);
+    if (histN) histN.textContent = state.issues ? String(issueStats().done) : '…';
     const issN = $('#iss-hist-n');
     if (issN) issN.textContent = String(issueStats().done);
   }
 
   async function loadArchive(force) {
     showView('archive');
+    applyArchTab(); /* 딥링크(?tab=history)로 들어와도 자료 탭이 잠깐 보이지 않게 바로 전환 (2026-11-28) */
     const needPosts = !!force || !state.arch || state.archDirty;
     const needIssues = !!force || !state.issues || state.issuesDirty;
     if (!needPosts && !needIssues) { renderArchive(); return; }
