@@ -915,8 +915,8 @@ body.modal-open{overflow:hidden}
   .ln-sum-total .ln-sum-v,.ln-sum-side .ln-sum-v{font-size:17px;text-align:right}
   .ln-sum-total .ln-sum-sub,.ln-sum-side .ln-sum-sub{grid-column:1/-1;text-align:right;font-size:10.8px}
   .ln-head{gap:6px;margin-bottom:8px}
-  .ln-filters{gap:5px;flex-wrap:wrap;max-width:100%}
-  .ln-filter{height:30px;padding:0 11px;font-size:12.4px}
+  .ln-filters{gap:4px;flex-wrap:wrap;max-width:100%}
+  .ln-filter{height:29px;padding:0 9px;font-size:12.2px;gap:4px}
   .ln-add{height:30px!important}
   .ln-list{margin:0 -12px;border:0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);border-radius:0;box-shadow:none}
   .ln-item{padding:13px 12px}
