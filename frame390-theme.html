@@ -12,9 +12,17 @@
 </style>
 </head>
 <body>
-  <div class="row"><div class="cap">A dashboard #/</div><iframe id="f-dash" title="dash" src="./index.html?t=9&v=20261129-2#/"></iframe></div>
-  <div class="row"><div class="cap">B lines #/lines</div><iframe id="f-lines" title="lines" src="./index.html?t=9&v=20261129-2#/lines"></iframe></div>
-  <div class="row"><div class="cap">C issues #/issues</div><iframe id="f-issues" title="issues" src="./index.html?t=9&v=20261129-2#/issues"></iframe></div>
-  <div class="row"><div class="cap">D demo ?demo=1</div><iframe id="f-demo" title="demo" src="./index.html?demo=1&t=9&v=20261129-2#/"></iframe></div>
+  <div class="row"><div class="cap">A dashboard #/</div><iframe id="f-dash" title="dash" data-src="./index.html" data-hash="#/"></iframe></div>
+  <div class="row"><div class="cap">B lines #/lines</div><iframe id="f-lines" title="lines" data-src="./index.html" data-hash="#/lines"></iframe></div>
+  <div class="row"><div class="cap">C issues #/issues</div><iframe id="f-issues" title="issues" data-src="./index.html" data-hash="#/issues"></iframe></div>
+  <div class="row"><div class="cap">D demo ?demo=1</div><iframe id="f-demo" title="demo" data-src="./index.html?demo=1" data-hash="#/"></iframe></div>
+<script>
+  /* 임시 검증용: 매번 새로 받도록 캐시 회피 쿼리를 붙인다 (게시판 코드 아님) */
+  var cb = '&cb=' + Date.now();
+  document.querySelectorAll('iframe[data-src]').forEach(function (f) {
+    var src = f.getAttribute('data-src');
+    f.src = src + (src.indexOf('?') >= 0 ? cb : '?' + cb.slice(1)) + (f.getAttribute('data-hash') || '');
+  });
+</script>
 </body>
 </html>
