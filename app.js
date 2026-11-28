@@ -651,7 +651,7 @@
     const archOn = state.view === 'archive';
     const linesOn = state.view === 'lines';
     const issOn = state.view === 'issues';
-    /* 2026-11-28 펨코 스타일: 윗줄 = 큰 기능(진한 파란 칩), 아랫줄 = 말머리(연한 테두리 칩) */
+    /* 2026-11-28 펨코 스타일: 윗줄 = 큰 기능(진한 강조 칩), 아랫줄 = 말머리(연한 테두리 칩) — 2026-11-29 테라코타 */
     const mainParts = [
       { key: 'all', label: '전체 글', on: listOn },
       { key: 'archive', label: '결산·자료실', on: archOn },
@@ -1062,7 +1062,7 @@
        예전: 댓글 첫 줄('결론', '보완:' 등)이 큰 글씨로 나오고 어느 글인지는 작은 회색 줄에만 있어
        무슨 일인지 한눈에 안 보였고, 같은 글이 여러 줄 차지했다.
        지금: 한 줄 = 한 글. 큰 글씨는 글 제목, 아래 줄은 말머리 · 댓글 수 · 마지막 작성자 · 의미 있는 요약.
-       지난번 대시보드를 연 뒤 새로 생긴 활동은 왼쪽 파란 점 + 연한 배경으로 표시한다(브라우저별 기억). */
+       지난번 대시보드를 연 뒤 새로 생긴 활동은 왼쪽 주황 점 + 연한 배경으로 표시한다(브라우저별 기억). */
     const ACT_SEEN_KEY = 'yes-ai-board-act-seen';
     if (state.actSeenBase == null) state.actSeenBase = Number(localStorage.getItem(ACT_SEEN_KEY) || 0);
     const seenBase = state.actSeenBase;
