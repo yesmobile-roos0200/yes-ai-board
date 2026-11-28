@@ -38,6 +38,13 @@
   const PAGE_SIZE = 15;
   const ALL = '전체';
 
+  /* 2026-11-28 — 체험용 데모 링크(?demo=1).
+     실제 Supabase에는 요청을 한 건도 보내지 않고, demo.js의 메모리 샘플 데이터로만 돌아간다.
+     새로고침하면 처음 샘플로 돌아온다. #/demo 로 들어와도 ?demo=1로 넘겨 준다. */
+  const DEMO = (() => {
+    try { return new URLSearchParams(location.search).get('demo') === '1'; } catch (e) { return false; }
+  })();
+
   /* 대시보드(#/) 설정 — DB 변경 없이 제목 태그·`완료:` 댓글만으로 계산한다.
      2026-11-27 Claude 보완: 개발·앱 칸 앱별 최신 배포, ③과 중복 제외, 빈 칸 한 줄 접기, 모바일 영역 칸 가로 넘김.
      2026-11-27 Claude 2단계: 상태·중요도·담당·기한 칸(DB) 연결. 칸이 비어 있으면 1단계 규칙 그대로. */
@@ -114,7 +121,12 @@
     'Claude': 'badge-claude',
     '제미나이': 'badge-gemini',
     'Vooy': 'badge-vooy',
-    '종훈': 'badge-jonghun'
+    '종훈': 'badge-jonghun',
+    /* 체험용 데모(?demo=1)의 가상 작성자 — 실제 게시판 데이터에는 쓰이지 않는다 (2026-11-28) */
+    '매장비서': 'badge-yes',
+    '물류비서': 'badge-chonggwal',
+    '견적비서': 'badge-jisilver',
+    '점주': 'badge-jonghun'
   };
 
   const state = {
@@ -938,7 +950,7 @@
     const grid = $('#dash-area-grid');
     grid.style.setProperty('--area-cols', String(Math.max(1, filledAreas.length)));
     grid.innerHTML = filledAreas.map(({ a, all, list }) => {
-      const extra = AREA_EXTRA_LINK[a.key];
+      const extra = DEMO ? null : AREA_EXTRA_LINK[a.key]; /* 데모에서는 실제 노션 '고객관리 원본' 링크를 숨긴다 */
       const head = `<header class="area-head">
           <h3>${esc(a.label)}</h3>
           <span class="area-count">${all.length}</span>
@@ -3223,6 +3235,7 @@
   }
 
   async function doLogout() {
+    if (DEMO) { leaveDemo(); return; }
     await db.auth.signOut().catch(() => {});
     state.session = null;
     state.member = false;
@@ -3254,11 +3267,110 @@
     }
   }
 
+  /* ---------- 체험용 데모 (?demo=1) 2026-11-28 ----------
+     · db 자리에 demo.js의 메모리 가짜 클라이언트를 끼워 넣어 Supabase 호출을 원천 차단한다.
+     · 로그인·멤버십 확인을 건너뛰고 바로 게시판 화면으로 들어간다.
+     · 상단 안내 바·☰ 메뉴·푸터·브랜드 이름을 데모용으로 바꾼다. */
+  function realBoardUrl() {
+    return location.origin + location.pathname;
+  }
+
+  function leaveDemo() {
+    location.replace(realBoardUrl());
+  }
+
+  function setupDemoChrome() {
+    document.title = '샘플AI 공용 게시판 · 체험용 데모';
+    document.body.classList.add('is-demo');
+
+    if (!$('#demo-bar')) {
+      const bar = document.createElement('div');
+      bar.className = 'demo-bar';
+      bar.id = 'demo-bar';
+      bar.setAttribute('role', 'note');
+      bar.innerHTML = '<span class="demo-bar-tag">🧪 체험용 데모</span>' +
+        '<span class="demo-bar-text">가상 샘플 데이터로 동작 중 · 실제 게시판 데이터와 분리되어 있습니다</span>';
+      document.body.insertBefore(bar, document.body.firstChild);
+    }
+
+    const mark = $('.brand-mark');
+    if (mark) mark.textContent = '샘';
+    const name = $('.brand-name');
+    if (name) name.textContent = '샘플AI';
+    const brand = $('.brand');
+    if (brand) brand.setAttribute('aria-label', '샘플AI 체험용 대시보드');
+
+    const foot = $('.site-foot');
+    if (foot) foot.innerHTML = '<span>샘플통신 · 체험용 데모 게시판 (가상 데이터)</span>';
+
+    const who = $('#who-email');
+    if (who) who.textContent = '체험 모드';
+
+    const menuEmail = $('#menu-email');
+    if (menuEmail) {
+      menuEmail.textContent = '체험 모드 · 샘플 데이터';
+      const label = menuEmail.previousElementSibling;
+      if (label && label.classList.contains('menu-label')) label.textContent = '체험용 데모';
+    }
+    const logout = $('#btn-logout');
+    if (logout) logout.hidden = true;
+
+    const panel = $('#top-menu');
+    if (panel && !$('#demo-exit')) {
+      const hint = document.createElement('p');
+      hint.className = 'menu-hint menu-demo-hint';
+      hint.textContent = '이 화면은 체험용입니다. 실제 글·회선·일정 데이터와는 완전히 분리되어 있고, 새로고침하면 처음 샘플로 돌아갑니다.';
+      panel.insertBefore(hint, panel.firstChild);
+      const exit = document.createElement('button');
+      exit.type = 'button';
+      exit.id = 'demo-exit';
+      exit.className = 'btn btn-ghost menu-logout demo-exit';
+      exit.textContent = '실제 로그인으로 전환';
+      exit.addEventListener('click', leaveDemo);
+      panel.appendChild(exit);
+    }
+  }
+
+  async function startDemo() {
+    /* 데모에서는 작성자 드롭다운도 가상 이름만 쓴다 (실제 이름이 화면에 남지 않게) */
+    if (window.YES_DEMO && Array.isArray(window.YES_DEMO.authors) && window.YES_DEMO.authors.length) {
+      AUTHORS.length = 0;
+      window.YES_DEMO.authors.forEach((a) => AUTHORS.push(a));
+    }
+    db = window.YES_DEMO.createClient();
+    state.session = window.YES_DEMO.session;
+    state.member = true;
+    state.email = '체험 모드';
+    showScreen('#screen-board');
+    buildTabs();
+    fillSelects();
+    syncMenu();
+    setupDemoChrome();
+    await route();
+  }
+
   /* ---------- 시작 ---------- */
   async function boot() {
     bind();
     bindLines();
     bindIssues();
+
+    if (!DEMO && /^#\/demo\b/.test(String(location.hash || ''))) {
+      location.replace(realBoardUrl() + '?demo=1');
+      return;
+    }
+
+    if (DEMO) {
+      if (!window.YES_DEMO || typeof window.YES_DEMO.createClient !== 'function') {
+        showScreen('#screen-login');
+        const err = $('#login-error');
+        err.textContent = '데모 데이터(demo.js)를 불러오지 못했습니다. 새로고침해 주세요.';
+        err.hidden = false;
+        return;
+      }
+      await startDemo();
+      return;
+    }
 
     if (!window.supabase || typeof window.supabase.createClient !== 'function') {
       showScreen('#screen-login');
