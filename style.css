@@ -46,8 +46,8 @@ pre{margin:0;white-space:pre-wrap;word-break:break-word}
 .brand{display:flex;align-items:center;gap:8px;min-width:0;color:#1c1b18;text-decoration:none;flex:none}
 .brand:hover{text-decoration:none}
 /* 2026-11-29: 종훈 님이 보낸 브랜드 배너 이미지(크림 여백 크롭 + 투명 PNG, 2배 해상도) */
-.brand-logo{display:block;height:29px;width:auto;max-width:100%;flex:none}
-.brand-logo-lg{height:44px;margin:0 auto}
+.brand-logo{display:block;height:24px;width:auto;max-width:100%;flex:none}
+.brand-logo-lg{height:38px;margin:0 auto}
 /* 가로 꽉 찬 통합검색 — 헤더 바로 아래 한 줄 (2026-11-28) */
 .top-search-strip{background:#fffdfa;padding:8px 18px;border-bottom:1px solid var(--line)}
 .top-search{position:relative;display:flex;align-items:center;width:100%;max-width:1044px;margin:0 auto}
@@ -227,7 +227,7 @@ pre{margin:0;white-space:pre-wrap;word-break:break-word}
 .board-table tbody tr:hover{background:#fbf9f5}
 .board-table .col-no,.board-table .col-date{color:var(--muted);font-size:12.8px;white-space:nowrap}
 .board-table .col-author{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.cell-no{color:#9a938a;font-size:12.5px;font-variant-numeric:tabular-nums}
+.cell-no{color:#8d867b;font-size:12.5px;font-variant-numeric:tabular-nums}
 .cell-title{display:block;color:var(--ink);font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .cell-title:hover{color:var(--accent);text-decoration:underline}
 .cell-title .cmt{color:var(--accent);font-weight:700;font-size:12.5px;margin-left:3px}
@@ -254,7 +254,7 @@ pre{margin:0;white-space:pre-wrap;word-break:break-word}
 }
 .badge::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor;opacity:.75}
 .badge-jisilver{color:#6d4a9c;background:#f4f0f7;border-color:#e6dcf0}
-.badge-yes{color:#8a5a2f;background:#faf3e2;border-color:#eddfc2}
+.badge-yes{color:#7d5227;background:#faf3e2;border-color:#e8d8b8}
 .badge-chonggwal{color:#463a5e;background:#f0eef8;border-color:#e4e2f0}
 /* 2026-11-27 이름 변경: 종훈비서=badge-jisilver · 예스매장=badge-yes · 예스물류=badge-chonggwal (구 이름도 같은 색 사용) */
 .badge-chatgpt{color:#1b7a4b;background:#ecf6f0;border-color:#d6ecdf}
@@ -316,11 +316,11 @@ pre{margin:0;white-space:pre-wrap;word-break:break-word}
 .comment-body{font-size:14px;line-height:1.7;color:#2e2b26;word-break:break-word}
 .comment-body p{margin:0 0 4px}
 .comment-body p:last-child{margin-bottom:0}
-.comment-del{margin-left:auto;border:0;background:none;color:#a39c91;font-size:12px;cursor:pointer;padding:2px 4px}
+.comment-del{margin-left:auto;border:0;background:none;color:#948c80;font-size:12px;cursor:pointer;padding:2px 4px}
 .comment-del:hover{color:var(--danger)}
 .comment-acts{margin-left:auto;display:flex;align-items:center;gap:2px}
 .comment-acts .comment-del{margin-left:0}
-.comment-act{border:0;background:none;color:#a39c91;font-size:12px;cursor:pointer;padding:2px 4px}
+.comment-act{border:0;background:none;color:#948c80;font-size:12px;cursor:pointer;padding:2px 4px}
 .comment-act:hover{color:var(--accent)}
 .comment-edit{margin-top:2px}
 .comment-edit-input{
@@ -397,7 +397,7 @@ pre{margin:0;white-space:pre-wrap;word-break:break-word}
   color:var(--ink);letter-spacing:-.3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
 }
 .key-link:hover .key-title{color:var(--accent)}
-.key-date{flex:none;font-size:12px;color:#968f84;font-variant-numeric:tabular-nums}
+.key-date{flex:none;font-size:12px;color:#877f74;font-variant-numeric:tabular-nums}
 .key-meta{display:flex;align-items:center;gap:6px;margin-top:5px;font-size:11.5px;color:var(--muted);flex-wrap:wrap}
 .key-meta .badge{font-size:11.2px;padding:1px 7px}
 .key-meta .flag{margin-left:0}
@@ -405,7 +405,7 @@ pre{margin:0;white-space:pre-wrap;word-break:break-word}
   display:inline-flex;align-items:center;height:19px;padding:0 7px;border-radius:5px;
   font-size:10.8px;font-weight:700;background:#fbf3e2;color:#8f5416;border:1px solid #ead3bc;white-space:nowrap;
 }
-.key-cmt{color:#968f84}
+.key-cmt{color:#877f74}
 .dash-empty{padding:22px 16px;text-align:center;color:var(--muted);font-size:13.2px}
 .dash-more-wrap{padding:9px 12px;border-top:1px solid var(--line-soft);text-align:center;background:#fbf9f5}
 .dash-more{border:1px solid var(--line);background:#fff;color:var(--ink-2);border-radius:8px;height:32px;padding:0 14px;font-size:12.6px;font-weight:600;cursor:pointer}
@@ -484,7 +484,7 @@ pre{margin:0;white-space:pre-wrap;word-break:break-word}
 .link-btn:hover{background:var(--accent-weak)}
 
 /* 푸터·토스트 */
-.site-foot{max-width:1080px;margin:0 auto;padding:0 18px 30px;color:#a39c91;font-size:11.5px;text-align:center}
+.site-foot{max-width:1080px;margin:0 auto;padding:0 18px 30px;color:#948c80;font-size:11.5px;text-align:center}
 
 /* 체험용 데모 (?demo=1) — 2026-11-28 */
 .demo-bar{
@@ -519,7 +519,7 @@ pre{margin:0;white-space:pre-wrap;word-break:break-word}
 }
 .arch-filter:hover{border-color:#e2dcd2;color:var(--ink)}
 .arch-filter.active{background:#fceee6;border-color:#f2d6c6;color:#c85527}
-.arch-n{font-size:11.5px;font-weight:600;color:#968f84;font-variant-numeric:tabular-nums}
+.arch-n{font-size:11.5px;font-weight:600;color:#877f74;font-variant-numeric:tabular-nums}
 .arch-filter.active .arch-n{color:#c85527}
 .arch-write{margin-left:auto;height:32px!important;flex:none}
 .arch-lead{margin:0 0 14px;font-size:12.5px;line-height:1.6;color:var(--muted)}
@@ -531,7 +531,7 @@ pre{margin:0;white-space:pre-wrap;word-break:break-word}
   font-size:12.8px;font-weight:700;color:#6b655c;
 }
 .arch-month::after{content:"";flex:1 1 auto;height:1px;background:var(--line-soft)}
-.arch-month-n{font-size:11.6px;font-weight:600;color:#9a938a;font-variant-numeric:tabular-nums}
+.arch-month-n{font-size:11.6px;font-weight:600;color:#8d867b;font-variant-numeric:tabular-nums}
 .arch-rows{list-style:none;margin:0;padding:0;background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);overflow:hidden}
 .arch-item+.arch-item{border-top:1px solid var(--line-soft)}
 .arch-link{display:flex;align-items:center;gap:10px;padding:11px 14px;color:var(--ink)}
@@ -584,13 +584,13 @@ pre{margin:0;white-space:pre-wrap;word-break:break-word}
   .arch-meta-l{min-width:0;flex-wrap:wrap;gap:6px}
   .arch-meta .cat-chip{display:none}
   .arch-meta .badge{font-size:11.4px;padding:2px 7px}
-  .arch-meta-r{color:#968f84;font-size:12px}
+  .arch-meta-r{color:#877f74;font-size:12px}
   .act-link{padding:12px 13px 12px 20px}
   .wrap{padding:12px 12px 40px}
   /* 헤더: [예] 예스AI · + 글쓰기 · ☰ (2026-11-28 펨코 스타일 — 검색은 아래 한 줄로 분리) */
   .topbar-inner{padding:8px 12px;gap:8px}
   .brand{gap:6px}
-  .brand-logo{height:25px}
+  .brand-logo{height:21px}
   .top-search-strip{padding:7px 12px}
   .top-search{max-width:none}
   .top-search input{height:36px;font-size:13.6px;padding:0 40px 0 11px}
@@ -642,7 +642,7 @@ pre{margin:0;white-space:pre-wrap;word-break:break-word}
     margin-top:7px;font-size:12.2px;
   }
   .m-meta-left{display:inline-flex;align-items:center;gap:6px;min-width:0;flex-wrap:wrap}
-  .m-date{flex:none;color:#968f84;font-size:12px;font-variant-numeric:tabular-nums}
+  .m-date{flex:none;color:#877f74;font-size:12px;font-variant-numeric:tabular-nums}
   .m-meta .cat-chip{font-size:11px;padding:3px 7px;line-height:1.3}
   .m-meta .badge{font-size:11.4px;padding:2px 7px}
   .m-meta .pinmark{margin-right:0}
@@ -824,7 +824,7 @@ body.modal-open{overflow:hidden}
 .ln-sheet-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
 .ln-sheet-title{margin:0;font-size:17px;font-weight:800;color:var(--ink);letter-spacing:-.3px;line-height:1.4}
 .ln-sheet-sub{margin:3px 0 0;font-size:12.4px;color:var(--muted);line-height:1.5}
-.ln-x{border:0;background:none;color:#9a938a;font-size:22px;line-height:1;padding:0 2px;cursor:pointer;flex:none}
+.ln-x{border:0;background:none;color:#8d867b;font-size:22px;line-height:1;padding:0 2px;cursor:pointer;flex:none}
 .ln-x:hover{color:var(--ink-2)}
 
 .ln-sec{margin-top:11px;background:#fbf9f5;border:1px solid #efe9df;border-radius:10px;padding:11px 12px}
@@ -950,7 +950,7 @@ body.modal-open{overflow:hidden}
 }
 .iss-subtabs button:hover{color:var(--ink-2)}
 .iss-subtabs button.on{color:var(--accent);border-bottom-color:var(--accent)}
-.iss-n{font-size:11.6px;font-weight:700;color:#968f84;font-variant-numeric:tabular-nums}
+.iss-n{font-size:11.6px;font-weight:700;color:#877f74;font-variant-numeric:tabular-nums}
 .iss-subtabs button.on .iss-n{color:var(--accent)}
 
 /* 빠른 등록 — 칩 한 줄 */
@@ -981,7 +981,7 @@ body.modal-open{overflow:hidden}
 .iss-st.is-done{background:#ecf6f0;color:#1b7a4b}
 .iss-pr{font-size:11px;font-weight:700;padding:3px 7px;border-radius:6px;background:#f6f2ea;color:#8a857a;white-space:nowrap;line-height:1.3}
 .iss-pr.is-high{background:#fbf3e2;color:#8a6a1e}
-.iss-pr.is-low{color:#a39c91}
+.iss-pr.is-low{color:#948c80}
 
 .iss-title{
   margin:0;min-width:0;font-size:16px;font-weight:700;color:#1c1b18;line-height:1.42;letter-spacing:-.3px;
@@ -991,7 +991,7 @@ body.modal-open{overflow:hidden}
 .iss-when .iss-due{font-weight:700;color:#55504a}
 .iss-amount{font-weight:700;color:#1b7a4b}
 .iss-next{margin-top:6px;font-size:12.6px;color:#6b655c;line-height:1.5;word-break:break-word;overflow-wrap:anywhere}
-.iss-next::before{content:"→ ";color:#968f84;font-weight:700}
+.iss-next::before{content:"→ ";color:#877f74;font-weight:700}
 .iss-actions{display:flex;gap:6px;margin-top:9px}
 .iss-actions .ln-btn{background:#fff}
 
@@ -1005,7 +1005,7 @@ body.modal-open{overflow:hidden}
 .iss-hist-month{display:flex;align-items:center;gap:8px;margin:0 0 8px;padding:0 2px;font-size:12.8px;font-weight:700;color:#6b655c}
 .iss-hist-month::after{content:"";flex:1 1 auto;height:1px;background:var(--line-soft)}
 .iss-result{margin-top:7px;background:#f6f2ea;border:1px solid var(--line-soft);border-radius:8px;padding:8px 10px;font-size:12.6px;color:#4a4640;line-height:1.55;white-space:pre-wrap;word-break:break-word;overflow-wrap:anywhere}
-.iss-result-k{display:block;font-size:10.6px;font-weight:700;color:#968f84;letter-spacing:.05em;margin-bottom:3px}
+.iss-result-k{display:block;font-size:10.6px;font-weight:700;color:#877f74;letter-spacing:.05em;margin-bottom:3px}
 
 @media (max-width:720px){
   .iss-sum-add{padding-left:9px}
