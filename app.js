@@ -1031,7 +1031,7 @@
     const main = threads.filter((t) => !t.personal).slice(0, 8);
     const personal = threads.filter((t) => t.personal).slice(0, 5);
     const newest = threads.reduce((m, t) => Math.max(m, new Date(t.last).getTime() || 0), 0);
-    if (newest) localStorage.setItem(ACT_SEEN_KEY, String(newest));
+    if (newest && !DEMO) localStorage.setItem(ACT_SEEN_KEY, String(newest)); /* 체험용 데모는 방문자의 실제 게시판 기억을 건드리지 않는다 */
 
     const actHtml = (t) => {
       /* 요약 줄 마스킹: 고객예약은 이름·전화번호, 그 외 말머리는 전화번호만 */
@@ -2738,7 +2738,7 @@
       const a = canonicalAuthor(params.get('author'));
       if (a && AUTHORS.includes(a)) {
         $('#write-author').value = a;
-        localStorage.setItem('yes_ai_board_author', a);
+        if (!DEMO) localStorage.setItem('yes_ai_board_author', a);
       }
       const c = params.get('category');
       if (c && CATEGORIES.includes(c)) $('#write-category').value = c;
@@ -2773,7 +2773,7 @@
     if (!title) return showWriteError('제목을 적어 주세요.');
     if (!category) return showWriteError('말머리를 골라 주세요.');
 
-    localStorage.setItem('yes_ai_board_author', author);
+    if (!DEMO) localStorage.setItem('yes_ai_board_author', author);
     btn.disabled = true;
     const label = btn.textContent;
     btn.textContent = '저장 중…';
@@ -3022,12 +3022,12 @@
     $('#default-author').addEventListener('change', (e) => {
       const v = canonicalAuthor(e.target.value);
       if (v && AUTHORS.includes(v)) {
-        localStorage.setItem(DEFAULT_AUTHOR_KEY, v);
+        if (!DEMO) localStorage.setItem(DEFAULT_AUTHOR_KEY, v);
         if (!state.editing) $('#write-author').value = v; /* 수정 중인 글의 작성자는 그대로 둔다 (2026-11-28) */
         $('#comment-author').value = v;
         toast(`기본 작성자를 '${v}'${josaRo(v)} 정했습니다.`);
       } else {
-        localStorage.removeItem(DEFAULT_AUTHOR_KEY);
+        if (!DEMO) localStorage.removeItem(DEFAULT_AUTHOR_KEY);
         toast('기본 작성자를 정하지 않았습니다. 최근에 쓴 이름을 씁니다.');
       }
     });
@@ -3172,7 +3172,7 @@
       if (!content) { el.focus(); return; }
       const btn = $('#btn-comment-submit');
       btn.disabled = true;
-      localStorage.setItem('yes_ai_board_author', author);
+      if (!DEMO) localStorage.setItem('yes_ai_board_author', author);
       const { error } = await db.from('ai_board_comments').insert({ post_id: state.postId, author, content });
       btn.disabled = false;
       if (error) {
