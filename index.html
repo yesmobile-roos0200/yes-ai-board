@@ -6,7 +6,7 @@
 <title>예스AI 공용 게시판</title>
 <meta name="robots" content="noindex, nofollow">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%232563eb'/%3E%3Ctext x='32' y='44' font-size='34' font-family='sans-serif' font-weight='700' fill='white' text-anchor='middle'%3EY%3C/text%3E%3C/svg%3E">
-<link rel="stylesheet" href="style.css?v=20261128-12">
+<link rel="stylesheet" href="style.css?v=20261128-13">
 </head>
 <body>
 
@@ -186,21 +186,52 @@
       </p>
     </div>
 
-    <!-- 결산·자료실 (#/archive) — 2026-11-27 추가 -->
+    <!-- 결산·자료실 (#/archive) — 2026-11-27 추가 / 2026-11-28 완료 기록(issues 완료) 통합 -->
     <div id="view-archive" hidden>
-      <div class="arch-head">
-        <div class="arch-filters" id="arch-filters" role="group" aria-label="자료 소분류">
-          <button type="button" class="arch-filter active" data-arch="all" aria-pressed="true">전체 <span class="arch-n">0</span></button>
-          <button type="button" class="arch-filter" data-arch="tax" aria-pressed="false">결산·세무 <span class="arch-n">0</span></button>
-          <button type="button" class="arch-filter" data-arch="buy" aria-pressed="false">매입·일련번호 <span class="arch-n">0</span></button>
-          <button type="button" class="arch-filter" data-arch="market" aria-pressed="false">시세·기준 <span class="arch-n">0</span></button>
-        </div>
-        <a class="btn btn-primary btn-sm arch-write" id="arch-write" href="#/write?category=%EA%B2%B0%EC%82%B0%C2%B7%EC%9E%90%EB%A3%8C">결산·자료 글쓰기</a>
+      <div class="iss-subtabs arch-subtabs" id="arch-modes" role="tablist" aria-label="결산·자료실 보기">
+        <button type="button" data-arch-mode="data" class="on" aria-pressed="true" role="tab">자료 · 결산 글 <span class="iss-n" id="arch-mode-data-n">0</span></button>
+        <button type="button" data-arch-mode="history" aria-pressed="false" role="tab">완료 기록 <span class="iss-n" id="arch-mode-hist-n">0</span></button>
       </div>
-      <p class="arch-lead">일일 마감·월간 결산·매입 일련번호·시세표처럼 <b>쌓아 두고 다시 보는 자료</b>를 한곳에 모았습니다. 글을 올릴 때 말머리를 <b>결산·자료</b>로 고르면 여기에 자동으로 들어옵니다. (기존 <b>세무·정산</b> 글과 제목에 <b>[매입기록]·[결산]·[자료]·[시세]</b>가 들어간 글도 함께 모입니다.)</p>
-      <div id="arch-list"></div>
-      <div class="empty" id="arch-empty" hidden>아직 모인 자료가 없습니다. <b>결산·자료 글쓰기</b>로 첫 자료를 남겨 보세요.</div>
-      <p class="arch-foot" id="arch-foot"></p>
+
+      <!-- ① 자료 · 결산 글 -->
+      <div id="arch-pane-data">
+        <div class="arch-head">
+          <div class="arch-filters" id="arch-filters" role="group" aria-label="자료 소분류">
+            <button type="button" class="arch-filter active" data-arch="all" aria-pressed="true">전체 <span class="arch-n">0</span></button>
+            <button type="button" class="arch-filter" data-arch="tax" aria-pressed="false">결산·세무 <span class="arch-n">0</span></button>
+            <button type="button" class="arch-filter" data-arch="buy" aria-pressed="false">매입·일련번호 <span class="arch-n">0</span></button>
+            <button type="button" class="arch-filter" data-arch="market" aria-pressed="false">시세·기준 <span class="arch-n">0</span></button>
+          </div>
+          <a class="btn btn-primary btn-sm arch-write" id="arch-write" href="#/write?category=%EA%B2%B0%EC%82%B0%C2%B7%EC%9E%90%EB%A3%8C">결산·자료 글쓰기</a>
+        </div>
+        <p class="arch-lead">일일 마감·월간 결산·매입 일련번호·시세표처럼 <b>쌓아 두고 다시 보는 자료</b>를 한곳에 모았습니다. 글을 올릴 때 말머리를 <b>결산·자료</b>로 고르면 여기에 자동으로 들어옵니다. (기존 <b>세무·정산</b> 글과 제목에 <b>[매입기록]·[결산]·[자료]·[시세]</b>가 들어간 글도 함께 모입니다.)</p>
+        <div id="arch-list"></div>
+        <div class="empty" id="arch-empty" hidden>아직 모인 자료가 없습니다. <b>결산·자료 글쓰기</b>로 첫 자료를 남겨 보세요.</div>
+        <p class="arch-foot" id="arch-foot"></p>
+      </div>
+
+      <!-- ② 완료 기록 (issues 완료) — 2026-11-28 일정 탭에서 이동 -->
+      <div id="arch-pane-history" hidden>
+        <div class="iss-search-row">
+          <input type="search" id="arch-hist-search" placeholder="제목·다음 행동·처리결과 검색" aria-label="완료 기록 검색" autocomplete="off" enterkeyhint="search">
+        </div>
+        <p class="arch-lead">일정에서 <b>완료</b> 처리한 기록을 완료일별로 모았습니다. 처리결과로 다시 찾아보고, <b>수정</b>으로 내용을 고칠 수 있습니다.</p>
+        <div class="ln-head">
+          <div class="ln-filters" id="arch-hist-filters" role="group" aria-label="완료 기록 분류">
+            <button type="button" class="ln-filter active" data-arch-hist-filter="전체" aria-pressed="true">전체</button>
+            <button type="button" class="ln-filter" data-arch-hist-filter="고객예약" aria-pressed="false">고객예약</button>
+            <button type="button" class="ln-filter" data-arch-hist-filter="금전" aria-pressed="false">금전</button>
+            <button type="button" class="ln-filter" data-arch-hist-filter="법무" aria-pressed="false">법무</button>
+            <button type="button" class="ln-filter" data-arch-hist-filter="매장" aria-pressed="false">매장</button>
+            <button type="button" class="ln-filter" data-arch-hist-filter="세금·행정" aria-pressed="false">세금·행정</button>
+            <button type="button" class="ln-filter" data-arch-hist-filter="재고" aria-pressed="false">재고</button>
+            <button type="button" class="ln-filter" data-arch-hist-filter="기타" aria-pressed="false">기타</button>
+          </div>
+        </div>
+        <div id="arch-history-list"></div>
+        <div class="ln-empty" id="arch-history-empty" hidden>조건에 맞는 완료 기록이 없습니다.</div>
+        <p class="ln-foot" id="arch-history-foot"></p>
+      </div>
     </div>
 
     <!-- 회선 관리 (#/lines) — 2026-11-28 러버블 yescom-game-hq /lines 통합 (lines·line_addons) -->
@@ -239,60 +270,34 @@
         </div>
       </section>
 
-      <div class="iss-subtabs" id="iss-modes" role="tablist" aria-label="일정 보기">
-        <button type="button" data-iss-mode="active" class="on" aria-pressed="true" role="tab">진행 중 <span class="iss-n" id="iss-mode-active-n">0</span></button>
-        <button type="button" data-iss-mode="done" aria-pressed="false" role="tab">완료 기록 <span class="iss-n" id="iss-mode-done-n">0</span></button>
+      <p class="iss-hist-link-row">완료한 일정은 <b>결산·자료실</b>에 모아 둡니다. <a href="#/archive?tab=history" id="iss-hist-link">완료 기록 <b id="iss-hist-n">0</b>건 보기 →</a></p>
+
+      <div class="iss-quick">
+        <span class="iss-quick-k">빠른 등록</span>
+        <button type="button" class="ln-btn" data-iss-quick="고객예약">+ 고객예약</button>
+        <button type="button" class="ln-btn" data-iss-quick="금전">+ 금전</button>
+        <button type="button" class="ln-btn" data-iss-quick="법무">+ 법무</button>
+        <button type="button" class="ln-btn" data-iss-quick="기타">+ 일반</button>
       </div>
 
-      <div id="iss-pane-active">
-        <div class="iss-quick">
-          <span class="iss-quick-k">빠른 등록</span>
-          <button type="button" class="ln-btn" data-iss-quick="고객예약">+ 고객예약</button>
-          <button type="button" class="ln-btn" data-iss-quick="금전">+ 금전</button>
-          <button type="button" class="ln-btn" data-iss-quick="법무">+ 법무</button>
-          <button type="button" class="ln-btn" data-iss-quick="기타">+ 일반</button>
+      <div class="ln-head">
+        <div class="ln-filters" id="iss-filters" role="group" aria-label="일정 필터">
+          <button type="button" class="ln-filter active" data-iss-filter="전체" aria-pressed="true">전체 <span class="ln-n">0</span></button>
+          <button type="button" class="ln-filter" data-iss-filter="오늘" aria-pressed="false">오늘 <span class="ln-n">0</span></button>
+          <button type="button" class="ln-filter" data-iss-filter="7일 이내" aria-pressed="false">7일 이내 <span class="ln-n">0</span></button>
+          <button type="button" class="ln-filter" data-iss-filter="고객예약" aria-pressed="false">고객예약 <span class="ln-n">0</span></button>
+          <button type="button" class="ln-filter" data-iss-filter="금전" aria-pressed="false">금전 <span class="ln-n">0</span></button>
+          <button type="button" class="ln-filter" data-iss-filter="법무" aria-pressed="false">법무 <span class="ln-n">0</span></button>
+          <button type="button" class="ln-filter" data-iss-filter="매장" aria-pressed="false">매장 <span class="ln-n">0</span></button>
+          <button type="button" class="ln-filter" data-iss-filter="세금·행정" aria-pressed="false">세금·행정 <span class="ln-n">0</span></button>
+          <button type="button" class="ln-filter" data-iss-filter="재고" aria-pressed="false">재고 <span class="ln-n">0</span></button>
+          <button type="button" class="ln-filter" data-iss-filter="기타" aria-pressed="false">기타 <span class="ln-n">0</span></button>
         </div>
-
-        <div class="ln-head">
-          <div class="ln-filters" id="iss-filters" role="group" aria-label="일정 필터">
-            <button type="button" class="ln-filter active" data-iss-filter="전체" aria-pressed="true">전체 <span class="ln-n">0</span></button>
-            <button type="button" class="ln-filter" data-iss-filter="오늘" aria-pressed="false">오늘 <span class="ln-n">0</span></button>
-            <button type="button" class="ln-filter" data-iss-filter="7일 이내" aria-pressed="false">7일 이내 <span class="ln-n">0</span></button>
-            <button type="button" class="ln-filter" data-iss-filter="고객예약" aria-pressed="false">고객예약 <span class="ln-n">0</span></button>
-            <button type="button" class="ln-filter" data-iss-filter="금전" aria-pressed="false">금전 <span class="ln-n">0</span></button>
-            <button type="button" class="ln-filter" data-iss-filter="법무" aria-pressed="false">법무 <span class="ln-n">0</span></button>
-            <button type="button" class="ln-filter" data-iss-filter="매장" aria-pressed="false">매장 <span class="ln-n">0</span></button>
-            <button type="button" class="ln-filter" data-iss-filter="세금·행정" aria-pressed="false">세금·행정 <span class="ln-n">0</span></button>
-            <button type="button" class="ln-filter" data-iss-filter="재고" aria-pressed="false">재고 <span class="ln-n">0</span></button>
-            <button type="button" class="ln-filter" data-iss-filter="기타" aria-pressed="false">기타 <span class="ln-n">0</span></button>
-          </div>
-        </div>
-
-        <ul class="ln-list" id="iss-list"></ul>
-        <div class="ln-empty" id="iss-empty" hidden>진행 중인 일정이 없습니다. <b>+ 등록</b>으로 첫 일정을 넣어 보세요.</div>
-        <p class="ln-foot" id="iss-foot"></p>
       </div>
 
-      <div id="iss-pane-done" hidden>
-        <div class="iss-search-row">
-          <input type="search" id="iss-history-search" placeholder="제목·다음 행동·처리결과 검색" aria-label="완료 기록 검색" autocomplete="off" enterkeyhint="search">
-        </div>
-        <div class="ln-head">
-          <div class="ln-filters" id="iss-hist-filters" role="group" aria-label="완료 기록 분류">
-            <button type="button" class="ln-filter active" data-iss-hist-filter="전체" aria-pressed="true">전체</button>
-            <button type="button" class="ln-filter" data-iss-hist-filter="고객예약" aria-pressed="false">고객예약</button>
-            <button type="button" class="ln-filter" data-iss-hist-filter="금전" aria-pressed="false">금전</button>
-            <button type="button" class="ln-filter" data-iss-hist-filter="법무" aria-pressed="false">법무</button>
-            <button type="button" class="ln-filter" data-iss-hist-filter="매장" aria-pressed="false">매장</button>
-            <button type="button" class="ln-filter" data-iss-hist-filter="세금·행정" aria-pressed="false">세금·행정</button>
-            <button type="button" class="ln-filter" data-iss-hist-filter="재고" aria-pressed="false">재고</button>
-            <button type="button" class="ln-filter" data-iss-hist-filter="기타" aria-pressed="false">기타</button>
-          </div>
-        </div>
-        <div id="iss-history-list"></div>
-        <div class="ln-empty" id="iss-history-empty" hidden>조건에 맞는 완료 기록이 없습니다.</div>
-        <p class="ln-foot" id="iss-history-foot"></p>
-      </div>
+      <ul class="ln-list" id="iss-list"></ul>
+      <div class="ln-empty" id="iss-empty" hidden>진행 중인 일정이 없습니다. <b>+ 등록</b>으로 첫 일정을 넣어 보세요.</div>
+      <p class="ln-foot" id="iss-foot"></p>
     </div>
 
     <!-- 목록 -->
@@ -644,7 +649,7 @@
     <div class="ln-sheet-head">
       <div>
         <h2 class="ln-sheet-title" id="issue-complete-title">완료 처리</h2>
-        <p class="ln-sheet-sub">상태를 <b>완료</b>로 바꾸고 <b>완료 기록</b>으로 옮깁니다.</p>
+        <p class="ln-sheet-sub">상태를 <b>완료</b>로 바꾸고 <b>결산·자료실 › 완료 기록</b>으로 옮깁니다.</p>
       </div>
       <button type="button" class="ln-x" data-iss-close aria-label="닫기">×</button>
     </div>
@@ -667,6 +672,6 @@
 <div class="toast" id="toast" hidden></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="app.js?v=20261128-12"></script>
+<script src="app.js?v=20261128-13"></script>
 </body>
 </html>

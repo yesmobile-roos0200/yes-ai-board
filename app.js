@@ -147,10 +147,10 @@
     lineFormId: null,     // 수정 중인 회선 id (신규면 null)
     issues: null,         // 일정 { list, at }
     issuesDirty: true,
-    issuesMode: 'active', // active = 진행 중 · done = 완료 기록
     issuesFilter: '전체',
-    issuesHistCat: '전체',
-    issuesHistQ: '',
+    archTab: 'data',      // data = 자료 · 결산 글 · history = 완료 기록 (2026-11-28)
+    archHistCat: '전체',
+    archHistQ: '',
     issueFormId: null     // 수정 중인 일정 id (신규면 null)
   };
 
@@ -1076,39 +1076,88 @@
     return keys;
   }
 
+  /* 서브 탭 두 개(자료 · 결산 글 / 완료 기록) 중 어느 쪽을 보여 줄지 — 2026-11-28 */
+  function applyArchTab() {
+    const tab = state.archTab === 'history' ? 'history' : 'data';
+    $$('#arch-modes button').forEach((b) => {
+      const on = b.dataset.archMode === tab;
+      b.classList.toggle('on', on);
+      b.setAttribute('aria-pressed', String(on));
+    });
+    const dataPane = $('#arch-pane-data');
+    const histPane = $('#arch-pane-history');
+    if (dataPane) dataPane.hidden = tab !== 'data';
+    if (histPane) histPane.hidden = tab !== 'history';
+    const dataN = $('#arch-mode-data-n');
+    if (dataN) dataN.textContent = String(state.arch && state.arch.posts ? state.arch.posts.length : 0);
+    const histN = $('#arch-mode-hist-n');
+    if (histN) histN.textContent = String(issueStats().done);
+    const issN = $('#iss-hist-n');
+    if (issN) issN.textContent = String(issueStats().done);
+  }
+
   async function loadArchive(force) {
     showView('archive');
-    if (state.arch && !force && !state.archDirty) { renderArchive(); return; }
+    const needPosts = !!force || !state.arch || state.archDirty;
+    const needIssues = !!force || !state.issues || state.issuesDirty;
+    if (!needPosts && !needIssues) { renderArchive(); return; }
     if (!state.arch) {
       $('#arch-list').hidden = false;
       $('#arch-list').innerHTML = '<div class="dash-loading">불러오는 중…</div>';
       $('#arch-empty').hidden = true;
     }
-
-    const { data, error } = await db.from('ai_board_posts')
-      .select('id,category,author,title,is_pinned,created_at,status,priority,owner,due_date')
-      .order('created_at', { ascending: false })
-      .limit(1000);
-
-    if (error) {
-      if (isAuthError(error)) return forceLogin();
-      if (isSetupError(error)) {
-        $('#setup-error-detail').textContent = errText(error);
-        showScreen('#screen-setup');
-        return;
-      }
-      $('#arch-list').innerHTML = `<div class="dash-loading">불러오지 못했습니다: ${esc(error.message || '')}</div>`;
-      return;
+    if (needIssues && !state.issues) {
+      const hbox = $('#arch-history-list');
+      if (hbox) hbox.innerHTML = '<div class="dash-loading">불러오는 중…</div>';
+      const hempty = $('#arch-history-empty');
+      if (hempty) hempty.hidden = true;
     }
 
-    const posts = (data || []).filter(isArchivePost);
-    const counts = await fetchCommentCounts(posts.map((p) => p.id));
-    state.arch = { posts, counts, at: new Date() };
-    state.archDirty = false;
+    const [postRes, issRes] = await Promise.all([
+      needPosts ? db.from('ai_board_posts')
+        .select('id,category,author,title,is_pinned,created_at,status,priority,owner,due_date')
+        .order('created_at', { ascending: false })
+        .limit(1000) : Promise.resolve(null),
+      needIssues ? db.from('issues').select('*').order('created_at', { ascending: false }) : Promise.resolve(null)
+    ]);
+
+    if (postRes) {
+      const { data, error } = postRes;
+      if (error) {
+        if (isAuthError(error)) return forceLogin();
+        if (isSetupError(error)) {
+          $('#setup-error-detail').textContent = errText(error);
+          showScreen('#screen-setup');
+          return;
+        }
+        $('#arch-list').innerHTML = `<div class="dash-loading">불러오지 못했습니다: ${esc(error.message || '')}</div>`;
+      } else {
+        const posts = (data || []).filter(isArchivePost);
+        const counts = await fetchCommentCounts(posts.map((p) => p.id));
+        state.arch = { posts, counts, at: new Date() };
+        state.archDirty = false;
+      }
+    }
+
+    if (issRes) {
+      const { data, error } = issRes;
+      if (error) {
+        if (isAuthError(error)) return forceLogin();
+        const msg = (error.code === '42501' || error.code === 'PGRST301')
+          ? '완료 기록을 볼 권한이 없습니다. (Supabase RLS)'
+          : (error.message || String(error));
+        $('#arch-history-list').innerHTML = `<div class="dash-loading">불러오지 못했습니다: ${esc(msg)}</div>`;
+      } else {
+        state.issues = { list: data || [], at: new Date() };
+        state.issuesDirty = false;
+      }
+    }
+
     renderArchive();
   }
 
   function renderArchive() {
+    applyArchTab();
     const a = state.arch;
     if (!a) return;
     const posts = a.posts || [];
@@ -1157,6 +1206,7 @@
     $('#arch-empty').hidden = list.length > 0;
     const foot = $('#arch-foot');
     if (foot) foot.textContent = `기준 ${fmtFull(a.at.toISOString())} · 누적 자료 ${posts.length}건 · 지금 보기 ${list.length}건`;
+    renderIssueHistory();
   }
 
   /* ---------- 회선 관리 (#/lines) — 2026-11-28 러버블 yescom-game-hq /lines 통합 ----------
@@ -2151,10 +2201,12 @@
     </li>`;
   }
 
+  /* 완료 기록 — 결산·자료실 › 완료 기록 서브 탭 (2026-11-28 일정 탭에서 이동) */
   function renderIssueHistory() {
-    const q = (state.issuesHistQ || '').trim().toLowerCase();
-    const cat = state.issuesHistCat || '전체';
-    let rows = issueStore().list.filter((i) => issueIsDone(i));
+    const q = (state.archHistQ || '').trim().toLowerCase();
+    const cat = state.archHistCat || '전체';
+    const doneAll = issueStore().list.filter((i) => issueIsDone(i));
+    let rows = doneAll;
     if (cat !== '전체') rows = rows.filter((i) => i.category === cat);
     if (q) {
       rows = rows.filter((i) => [i.title, i.next_action, i.result_note]
@@ -2178,12 +2230,16 @@
         <ul class="ln-list">${items.map(issueHistItemHtml).join('')}</ul>
       </div>`;
     }).join('');
-    const box = $('#iss-history-list');
+    const box = $('#arch-history-list');
     if (box) box.innerHTML = html;
-    const empty = $('#iss-history-empty');
+    const empty = $('#arch-history-empty');
     if (empty) empty.hidden = rows.length > 0;
-    const foot = $('#iss-history-foot');
+    const foot = $('#arch-history-foot');
     if (foot) foot.textContent = `완료 기록 ${rows.length}건${cat !== '전체' ? ` · ${cat}` : ''}${q ? ` · ‘${q}’ 검색` : ''}`;
+    const n = $('#arch-mode-hist-n');
+    if (n) n.textContent = String(doneAll.length);
+    const in1 = $('#iss-hist-n');
+    if (in1) in1.textContent = String(doneAll.length);
   }
 
   function renderIssues() {
@@ -2191,15 +2247,7 @@
     $('#iss-sum-soon').textContent = String(s.soon);
     $('#iss-sum-active').textContent = String(s.active);
     $('#iss-sum-over').textContent = String(s.over);
-    $('#iss-mode-active-n').textContent = String(s.active);
-    $('#iss-mode-done-n').textContent = String(s.done);
-    $$('#iss-modes button').forEach((b) => {
-      const on = b.dataset.issMode === (state.issuesMode || 'active');
-      b.classList.toggle('on', on);
-      b.setAttribute('aria-pressed', String(on));
-    });
-    $('#iss-pane-active').hidden = state.issuesMode === 'done';
-    $('#iss-pane-done').hidden = state.issuesMode !== 'done';
+    $('#iss-hist-n').textContent = String(s.done);
 
     const active = issueStore().list.filter((i) => !issueIsDone(i));
     const counts = {
@@ -2216,8 +2264,8 @@
       const n = $('.ln-n', b);
       if (n) n.textContent = String(counts[key] || 0);
     });
-    $$('#iss-hist-filters .ln-filter').forEach((b) => {
-      const on = b.dataset.issHistFilter === (state.issuesHistCat || '전체');
+    $$('#arch-hist-filters .ln-filter').forEach((b) => {
+      const on = b.dataset.archHistFilter === (state.archHistCat || '전체');
       b.classList.toggle('active', on);
       b.setAttribute('aria-pressed', String(on));
     });
@@ -2236,8 +2284,8 @@
     renderIssueHistory();
   }
 
-  async function loadIssues(force) {
-    showView('issues');
+  async function loadIssues(force, keepView) {
+    if (!keepView) showView('issues');
     if (state.issues && !force && !state.issuesDirty) { renderIssues(); return; }
     if (!state.issues) {
       $('#iss-list').innerHTML = '<li class="ln-loading">불러오는 중…</li>';
@@ -2358,7 +2406,7 @@
       closeModal('#issue-form-modal');
       state.issueFormId = null;
       state.issuesDirty = true;
-      await loadIssues(true);
+      await loadIssues(true, true); /* 화면은 그대로 둔다 — 결산·자료실 › 완료 기록에서 수정할 수도 있다 (2026-11-28) */
     } catch (err) {
       showIssueFormError(lineDbError(err));
     } finally {
@@ -2396,10 +2444,10 @@
         result_note: note || null
       }).eq('id', id);
       if (error) throw error;
-      toast('완료 처리했습니다. 완료 기록에서 다시 볼 수 있습니다.');
+      toast('완료 처리했습니다. 결산·자료실 › 완료 기록에서 다시 볼 수 있습니다.');
       closeModal('#issue-complete-modal');
       state.issuesDirty = true;
-      await loadIssues(true);
+      await loadIssues(true, true);
     } catch (ex) {
       errEl.textContent = lineDbError(ex);
       errEl.hidden = false;
@@ -2413,18 +2461,10 @@
     if (view) {
       view.addEventListener('click', (e) => {
         if (e.target.closest('#btn-issue-new')) { openIssueForm(null); return; }
-        const mode = e.target.closest('[data-iss-mode]');
-        if (mode) {
-          state.issuesMode = mode.dataset.issMode === 'done' ? 'done' : 'active';
-          renderIssues();
-          return;
-        }
         const quick = e.target.closest('[data-iss-quick]');
         if (quick) { openIssueForm(null, quick.dataset.issQuick); return; }
         const f = e.target.closest('[data-iss-filter]');
         if (f) { state.issuesFilter = f.dataset.issFilter; renderIssues(); return; }
-        const hf = e.target.closest('[data-iss-hist-filter]');
-        if (hf) { state.issuesHistCat = hf.dataset.issHistFilter; renderIssues(); return; }
         const ed = e.target.closest('[data-iss-edit]');
         if (ed) { openIssueForm(ed.dataset.issEdit); return; }
         const done = e.target.closest('[data-iss-done]');
@@ -2432,10 +2472,31 @@
       });
     }
 
-    const search = $('#iss-history-search');
-    if (search) {
-      search.addEventListener('input', () => {
-        state.issuesHistQ = search.value;
+    /* 결산·자료실 — 서브 탭 · 완료 기록 필터/검색/수정 (2026-11-28) */
+    const archView = $('#view-archive');
+    if (archView) {
+      archView.addEventListener('click', (e) => {
+        const mode = e.target.closest('[data-arch-mode]');
+        if (mode) {
+          const tab = mode.dataset.archMode === 'history' ? 'history' : 'data';
+          if (tab === state.archTab) { renderArchive(); return; }
+          state.archTab = tab;
+          const target = `#/archive?tab=${tab}`;
+          if (location.hash === target) renderArchive();
+          else location.hash = target;
+          return;
+        }
+        const hf = e.target.closest('[data-arch-hist-filter]');
+        if (hf) { state.archHistCat = hf.dataset.archHistFilter; renderArchive(); return; }
+        const ed = e.target.closest('[data-iss-edit]');
+        if (ed) { openIssueForm(ed.dataset.issEdit); return; }
+      });
+    }
+
+    const histSearch = $('#arch-hist-search');
+    if (histSearch) {
+      histSearch.addEventListener('input', () => {
+        state.archHistQ = histSearch.value;
         renderIssueHistory();
       });
     }
@@ -2834,8 +2895,16 @@
       return;
     }
 
-    /* #/archive = 📚 결산·자료실 — 결산·매입·시세 누적 자료만 모아 본다 */
+    /* #/archive = 결산·자료실 — 자료·결산 글 + 완료 기록(issues 완료) */
     if (path === '/archive' || path === '/archive/') {
+      state.archTab = params.get('tab') === 'history' ? 'history' : 'data';
+      await loadArchive();
+      return;
+    }
+
+    /* #/history = 러버블 완료 기록 주소 — 결산·자료실 › 완료 기록으로 연결 (2026-11-28) */
+    if (path === '/history' || path === '/history/') {
+      state.archTab = 'history';
       await loadArchive();
       return;
     }
@@ -2976,9 +3045,9 @@
       const nav = btn.dataset.nav;
       const before = location.hash;
       if (nav === 'archive') {
-        if (state.view === 'archive') { loadArchive(true); return; }
-        location.hash = '#/archive';
-        if (location.hash === before) loadArchive();
+        state.archTab = 'data';
+        if (location.hash !== '#/archive') { location.hash = '#/archive'; return; }
+        loadArchive(true);
         return;
       }
       if (nav === 'lines') {
